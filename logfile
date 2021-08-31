@@ -1,0 +1,2 @@
+2021-08-31 16:58:42.278 UTC [1369] FATAL:  lock file "postmaster.pid" already exists
+2021-08-31 16:58:42.278 UTC [1369] HINT:  Is another postmaster (PID 1144) running in data directory "/workspace/ihp-gitpod-template/build/db/state"?
