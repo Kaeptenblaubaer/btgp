@@ -19,14 +19,6 @@ instance View WelcomeView where
                      Your new application is up and running.
                   </p>
 
-                  <p>
-                      <a
-                          href="https://ihp.digitallyinduced.com/Slack"
-                          style="margin-top: 2rem; background-color: #268bd2; padding: 1rem; border-radius: 3px; color: hsla(205, 69%, 98%, 1); text-decoration: none; font-weight: bold; display: inline-block; box-shadow: 0 4px 6px hsla(205, 69%, 0%, 0.08); transition: box-shadow 0.2s; transition: transform 0.2s;"
-                          target="_blank"
-                      >Join our community on Slack!</a>
-                  </p>
-
                   <a href="https://ihp.digitallyinduced.com/Guide/your-first-project.html" style="margin-top: 2rem; background-color: #268bd2; padding: 1rem; border-radius: 3px; color: hsla(205, 69%, 98%, 1); text-decoration: none; font-weight: bold; display: inline-block; box-shadow: 0 4px 6px hsla(205, 69%, 0%, 0.08);  transition: box-shadow 0.2s; transition: transform 0.2s;" target="_blank">
                      Learn the Next Steps in the Documentation
                   </a>

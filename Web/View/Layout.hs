@@ -1,4 +1,4 @@
-module Web.View.Layout (defaultLayout, Html) where
+module Web.View.Layout (defaultLayout, Html, workflowMenu) where
 
 import IHP.ViewPrelude
 import IHP.Environment
@@ -8,7 +8,6 @@ import Generated.Types
 import IHP.Controller.RequestContext
 import Web.Types
 import Web.Routes
-import Application.Helper.View
 
 defaultLayout :: Html -> Html
 defaultLayout inner = H.docTypeHtml ! A.lang "en" $ [hsx|
@@ -18,46 +17,38 @@ defaultLayout inner = H.docTypeHtml ! A.lang "en" $ [hsx|
     {stylesheets}
     {scripts}
 
-    <title>{pageTitleOrDefault "App"}</title>
+    <title>App</title>
 </head>
 <body>
     <div class="container mt-4">
         {renderFlashMessages}
         {inner}
+        {modal}
     </div>
 </body>
 |]
 
--- The 'assetPath' function used below appends a `?v=SOME_VERSION` to the static assets in production
--- This is useful to avoid users having old CSS and JS files in their browser cache once a new version is deployed
--- See https://ihp.digitallyinduced.com/Guide/assets.html for more details
-
 stylesheets :: Html
 stylesheets = [hsx|
-        <link rel="stylesheet" href={assetPath "/vendor/bootstrap.min.css"}/>
-        <link rel="stylesheet" href={assetPath "/vendor/flatpickr.min.css"}/>
-        <link rel="stylesheet" href={assetPath "/app.css"}/>
+        <link rel="stylesheet" href="/vendor/bootstrap.min.css"/>
+        <link rel="stylesheet" href="/vendor/flatpickr.min.css"/>
+        <link rel="stylesheet" href="/app.css"/>
     |]
 
 scripts :: Html
 scripts = [hsx|
-        {when isDevelopment devScripts}
-        <script src={assetPath "/vendor/jquery-3.6.0.slim.min.js"}></script>
-        <script src={assetPath "/vendor/timeago.js"}></script>
-        <script src={assetPath "/vendor/popper.min.js"}></script>
-        <script src={assetPath "/vendor/bootstrap.min.js"}></script>
-        <script src={assetPath "/vendor/flatpickr.js"}></script>
-        <script src={assetPath "/vendor/morphdom-umd.min.js"}></script>
-        <script src={assetPath "/vendor/turbolinks.js"}></script>
-        <script src={assetPath "/vendor/turbolinksInstantClick.js"}></script>
-        <script src={assetPath "/vendor/turbolinksMorphdom.js"}></script>
-        <script src={assetPath "/helpers.js"}></script>
-        <script src={assetPath "/ihp-auto-refresh.js"}></script>
-    |]
-
-devScripts :: Html
-devScripts = [hsx|
-        <script id="livereload-script" src={assetPath "/livereload.js"}></script>
+        <script id="livereload-script" src="/livereload.js"></script>
+        <script src="/vendor/jquery-3.6.0.slim.min.js"></script>
+        <script src="/vendor/timeago.js"></script>
+        <script src="/vendor/popper.min.js"></script>
+        <script src="/vendor/bootstrap.min.js"></script>
+        <script src="/vendor/flatpickr.js"></script>
+        <script src="/vendor/morphdom-umd.min.js"></script>
+        <script src="/vendor/turbolinks.js"></script>
+        <script src="/vendor/turbolinksInstantClick.js"></script>
+        <script src="/vendor/turbolinksMorphdom.js"></script>
+        <script src="/helpers.js"></script>
+        <script src="/ihp-auto-refresh.js"></script>
     |]
 
 metaTags :: Html
@@ -69,4 +60,16 @@ metaTags = [hsx|
     <meta property="og:url" content="TODO"/>
     <meta property="og:description" content="TODO"/>
     {autoRefreshMeta}
+|]
+
+workflowMenu = [hsx|
+    <div><p>Workflow Command</p>
+    <p>
+        <select name="Workflow">
+        <option value="Next">Next</option>
+        <option value="Suspend">Suspend</option>
+        <option value="Commit">Commit</option>
+        <option value="Rollback">Rollback</option>
+    </select></p>
+    </div>
 |]
