@@ -27,7 +27,7 @@ data WorkflowsController
     | EditWorkflowAction { workflowId :: !(Id Workflow) }
     | UpdateWorkflowAction { workflowId :: !(Id Workflow) }
     | DeleteWorkflowAction { workflowId :: !(Id Workflow) }
-    | NextWorkflowAction { workflowId :: !(Id Workflow) }
+    | NextWorkflowAction 
     deriving (Eq, Show, Data)
 
 data PartnersController
@@ -42,6 +42,7 @@ data PartnersController
 
 data PartnerStatesController
     = PartnerStatesAction
+    | SelectPartnerStateAction 
     | NewPartnerStateAction
     | ShowPartnerStateAction { partnerStateId :: !(Id PartnerState) }
     | CreatePartnerStateAction

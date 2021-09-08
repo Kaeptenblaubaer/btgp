@@ -63,9 +63,9 @@ metaTags = [hsx|
 |]
 
 workflowMenu = [hsx|
-    <div><p>Workflow Command</p>
-    <p>
+    <div><p>Workflow Command
         <select name="Workflow">
+        <option value="SelPartnerState">Select Partner</option>
         <option value="Next">Next</option>
         <option value="Suspend">Suspend</option>
         <option value="Commit">Commit</option>

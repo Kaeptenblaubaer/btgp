@@ -20,7 +20,13 @@ renderForm contractState = formFor contractState [hsx|
     {(textField #refValidfromversion)}
     {(textField #refValidthruversion)}
     {(textField #refEntity)}
-    {(textField #content)}
+    {(textField #content)} 
+    <div><p>Select Partner
+    <select name = "Select Partner" >
+        <option value="SelectPremiumPayer">Premium Payer</option>
+        <option value="SelectInsuredPerson">Insured Person</option>
+    </select></p>
+    </div>
     {workflowMenu}
     {submitButton}
 |]

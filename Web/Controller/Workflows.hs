@@ -50,7 +50,7 @@ instance Controller WorkflowsController where
                     let workflowId = get #id workflow
                     setSuccessMessage "Workflow created"
                     setCurrentWorkflowId workflow
-                    redirectTo NextWorkflowAction {..}
+                    redirectTo NextWorkflowAction
 
     action DeleteWorkflowAction { workflowId } = do
         workflow <- fetch workflowId
@@ -58,9 +58,10 @@ instance Controller WorkflowsController where
         setSuccessMessage "Workflow deleted"
         redirectTo WorkflowsAction
 
-    action NextWorkflowAction { workflowId } = do
-        Log.info $ "nextaction Workflow" ++ show workflowId
+    action NextWorkflowAction = do
         workflow <- getCurrentWorkflow
+        let workflowId = get #id workflow
+        Log.info $ "nextaction Workflow" ++ show workflowId
         Log.info $ ("NextWF wf="++ show workflow)
         case getWfp workflow of
             Just wfp ->case get #workflowType workflow of
@@ -70,6 +71,7 @@ instance Controller WorkflowsController where
                         Just sid -> do
                             let cmd = paramText "Workflow"
                             case cmd of
+                                "SelPartnerState" -> redirectTo $ SelectPartnerStateAction
                                 "Next" -> redirectTo $ EditContractStateAction sid
                                 "Suspend" -> redirectTo $ ShowWorkflowAction workflowId
                                 "Commit" -> do
@@ -77,7 +79,7 @@ instance Controller WorkflowsController where
                                     setSuccessMessage "ContractState committed"
                                     redirectTo $ ShowWorkflowAction workflowId
                                 unknown -> do
-                                    setErrorMessage $ unknown ++ " is not known command."
+                                    setErrorMessage $ unknown ++ " is notknown command."
                                     redirectTo $ ShowWorkflowAction workflowId
                 --     HistorytypePartner -> case getStateIdMB partner wfp of
                 --         Nothing -> redirectTo NewPartnerAction 
