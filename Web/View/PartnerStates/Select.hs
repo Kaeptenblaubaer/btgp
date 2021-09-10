@@ -31,6 +31,6 @@ renderPartnerState :: PartnerState -> Html
 renderPartnerState partnerState = [hsx|
     <tr>
         <td>{get #content partnerState}</td>
-        <td><a href={(pathTo (NextWorkflowAction) <> "?Workflow=" ++ "SelPartnerState" ) }>Select</a></td>
+        <td><a href={(pathTo (NextWorkflowAction) <> "?Workflow=" ++ "UpdateContractStatePartnerState" ) }>Select</a></td>
     </tr>
 |]

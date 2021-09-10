@@ -32,7 +32,19 @@ instance Controller ContractStatesController where
                     contractState <- contractState |> updateRecord
                     setSuccessMessage "ContractState updated"
                     workflowId <- getCurrentWorkflowId
-                    redirectToPath (pathTo (NextWorkflowAction) <> "&Workflow=" ++ paramText "Workflow")
+                    redirectToPath (pathTo (NextWorkflowAction) <> "?Workflow=" ++ paramText "Workflow")
+
+    action UpdateContractStatePartnerStateAction { contractStateId } = do
+        contractState <- fetch contractStateId
+        contractState
+            |> buildContractState
+            |> ifValid \case
+                Left contractState -> render EditView { .. }
+                Right contractState -> do
+                    contractState <- contractState |> updateRecord
+                    setSuccessMessage "ContractState PartnerState refererence updated"
+                    workflowId <- getCurrentWorkflowId
+                    redirectToPath (pathTo (NextWorkflowAction) <> "?Workflow=" ++ paramText "Workflow")
 
     action CreateContractStateAction = do
         let contractState = newRecord @ContractState

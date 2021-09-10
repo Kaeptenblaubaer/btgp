@@ -72,6 +72,7 @@ instance Controller WorkflowsController where
                             let cmd = paramText "Workflow"
                             case cmd of
                                 "SelPartnerState" -> redirectTo $ SelectPartnerStateAction
+                                "UpdateContractStatePartnerState" -> redirectTo $ UpdateContractStatePartnerStateAction sid
                                 "Next" -> redirectTo $ EditContractStateAction sid
                                 "Suspend" -> redirectTo $ ShowWorkflowAction workflowId
                                 "Commit" -> do

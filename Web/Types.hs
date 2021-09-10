@@ -17,6 +17,7 @@ data ContractStatesController
     | EditContractStateAction { contractStateId :: !(Id ContractState) }
     | UpdateContractStateAction { contractStateId :: !(Id ContractState) }
     | DeleteContractStateAction { contractStateId :: !(Id ContractState) }
+    | UpdateContractStatePartnerStateAction { contractStateId :: !(Id ContractState) }
     deriving (Eq, Show, Data)
 
 data WorkflowsController
