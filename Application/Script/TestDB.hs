@@ -9,8 +9,15 @@ import Application.Helper.WorkflowProgress
 import Application.Script.Prelude
 import IHP.Log as Log
 
+
 run :: Script
 run = do
-    cs0 @ContractState <- newRecord
-    cs <- query @ContractState |> fetchOne 
-    Log.info $  "huhu" ++ show cs
+    cps :: ContractPartnerState <- query @ContractPartnerState |> fetchOne
+    Log.info $ "Fetch CPS " ++ show cps
+    let cId :: (Id ContractState) = get #refContract cps
+    c <- fetch cId
+    cagg :: Include "contractPartnerStates" ContractState <- fetch cId >>= fetchRelated #contractPartnerStates
+    let bubu = get #id cagg 
+        baba = get #contractPartnerStates cagg 
+    Log.info $ "Fetch c " ++ show c
+    Log.info $ "Fetch CAGG " ++ show cagg
