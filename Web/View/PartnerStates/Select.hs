@@ -1,5 +1,7 @@
 module Web.View.PartnerStates.Select where
 import Web.View.Prelude
+import Web.Controller.Workflows
+
 
 data SelectView = SelectView { partnerStates :: [PartnerState], pagination :: Pagination , wfId :: Id Workflow}
 
@@ -29,8 +31,12 @@ instance View SelectView where
 
 renderPartnerState :: PartnerState -> Html
 renderPartnerState partnerState = [hsx|
-    <tr>
-        <td>{get #content partnerState}</td>
-        <td><a href={(pathTo (NextWorkflowAction) <> "?Workflow=" ++ "UpdateContractStatePartnerState" ) }>Select</a></td>
-    </tr>
+    <p><form action={ NextWorkflowAction} method="POST">
+        <input type="hidden" name="Workflow" value="UpdateContractStatePartnerState" />
+        <input type="text" name="partnerStateId" value={show (get #id partnerState)} />
+        <button class="btn btn-primary">Select</button>
+    </form></p> 
 |]
+
+--        "Workflow=UpdateContractStatePartnerState" ++ "&partnerStateId=" ++ show (get #id partnerState)
+

@@ -1,7 +1,7 @@
 module Web.View.ContractStates.Edit where
 import Web.View.Prelude
 
-data EditView = EditView { contractState :: ContractState }
+data EditView = EditView { contractState :: ContractState}
 
 instance View EditView where
     html EditView { .. } = [hsx|

@@ -291,3 +291,15 @@ instance CanVersion Tariff TariffState where
         in wfp {tariff = Just $ new { shadowed = Just shadow }}
     setWorkFlowState :: WorkflowProgress ->Maybe (StateKeys (Id'"tariffs")(Id' "tariff_states")) -> WorkflowProgress
     setWorkFlowState wfp s = wfp  {tariff = s} 
+
+
+putPartnerState :: (?context::ControllerContext, ?modelContext :: ModelContext) => (Id ContractState) -> (Id PartnerState) -> IO()
+putPartnerState contractStateId partnerStateId = do
+    contractState <- fetch contractStateId
+    partnerState <- fetch partnerStateId
+    contract <- fetch (get #refEntity contractState) 
+    newContractPartner :: ContractPartner <- newRecord |> set #refHistory (get #refHistory contract) |> createRecord
+    newContractPartnerState :: ContractPartnerState <- newRecord |> set #refEntity (get #id newContractPartner) |> 
+        set #refContract (get #refEntity contractState) |> set #refPartner (get #refEntity partnerState) |>
+        set #refValidfromversion (get #refValidfromversion contractState) |> set #refValidthruversion Nothing |> createRecord
+    setSuccessMessage "new ContractStatePartnerState"

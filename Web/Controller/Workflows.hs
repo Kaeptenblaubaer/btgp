@@ -71,8 +71,13 @@ instance Controller WorkflowsController where
                         Just sid -> do
                             let cmd = paramText "Workflow"
                             case cmd of
+                                
                                 "SelPartnerState" -> redirectTo $ SelectPartnerStateAction
-                                "UpdateContractStatePartnerState" -> redirectTo $ UpdateContractStatePartnerStateAction sid
+                                "UpdateContractStatePartnerState" -> do
+                                    let partnerStateId :: Integer = param "partnerStateId"
+                                    Log.info $ "UpdateContractStatePartnerState cs=" ++ show sid ++ " ps=" ++ show partnerStateId
+                                    putPartnerState sid (Id partnerStateId)
+                                    redirectTo $ EditContractStateAction sid
                                 "Next" -> redirectTo $ EditContractStateAction sid
                                 "Suspend" -> redirectTo $ ShowWorkflowAction workflowId
                                 "Commit" -> do

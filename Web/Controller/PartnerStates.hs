@@ -1,4 +1,4 @@
-module Web.Controller.PartnerStates where
+    module Web.Controller.PartnerStates where
 
 import Web.Controller.Prelude
 import Web.View.PartnerStates.Select
@@ -76,7 +76,6 @@ instance Controller PartnerStatesController where
                 Left partnerState -> render EditView { .. }
                 Right partnerState -> do
                     partnerState <- partnerState |> updateRecord
-                    setSuccessMessage "PartnerState updated"
                     redirectTo EditPartnerStateAction { .. }
 
     action CreatePartnerStateAction = do
