@@ -300,6 +300,6 @@ putPartnerState contractStateId partnerStateId = do
     contract <- fetch (get #refEntity contractState) 
     newContractPartner :: ContractPartner <- newRecord |> set #refHistory (get #refHistory contract) |> createRecord
     newContractPartnerState :: ContractPartnerState <- newRecord |> set #refEntity (get #id newContractPartner) |> 
-        set #refContract (get #refEntity contractState) |> set #refPartner (get #refEntity partnerState) |>
+        set #refContract (get #id contractState) |> set #refPartner (get #id partnerState) |>
         set #refValidfromversion (get #refValidfromversion contractState) |> set #refValidthruversion Nothing |> createRecord
     setSuccessMessage "new ContractStatePartnerState"

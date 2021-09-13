@@ -39,7 +39,7 @@ run = do
     runMutation contract usr HistorytypeContract (fst csk) validfrom1 "1st mutatated ContractState"
     newContractPartner :: ContractPartner <- newRecord |> set #refHistory (Id (fromJust (history contractKeys))) |> createRecord
     newContractPartnerState :: ContractPartnerState <- newRecord |> set #refEntity (get #id newContractPartner) |> 
-        set #refContract (get #refEntity contractState) |> set #refPartner (get #refEntity partnerState) |>
+        set #refContract (get #id contractState) |> set #refPartner (get #id partnerState) |>
         set #refValidfromversion (get #refValidfromversion contractState) |> set #refValidthruversion Nothing |> createRecord
 --    runMutation partner usr HistorytypePartner (fst psk) validfrom1  "mutatated PartnerState"
 --    runMutation tariff usr HistorytypeTariff (fst tsk)  validfrom1  "mutatated TariffState"

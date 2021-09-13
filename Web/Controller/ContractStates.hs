@@ -22,17 +22,19 @@ instance Controller ContractStatesController where
 
     action EditContractStateAction { contractStateId } = do
         contractState <- fetch contractStateId
+        detailPartnerStates :: [ContractPartnerState] <- query @ContractPartnerState|> filterWhere(#refContract, get #id contractState) |> fetch
         render EditView { .. }
 
     action UpdateContractStateAction { contractStateId } = do
         contractState <- fetch contractStateId
+        detailPartnerStates :: [ContractPartnerState]<- query @ContractPartnerState|> filterWhere(#refContract, get #id contractState) |> fetch
         contractState
             |> buildContractState
             |> ifValid \case
                 Left contractState -> render EditView { .. }
                 Right contractState -> do
                     contractState <- contractState |> updateRecord
-                    -- setSuccessMessage "ContractState updated"
+                    setSuccessMessage "ContractState updated"
                     workflowId <- getCurrentWorkflowId
                     redirectToPath (pathTo (NextWorkflowAction) <> "?Workflow=" ++ paramText "Workflow" )
 
