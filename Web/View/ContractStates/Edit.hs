@@ -1,8 +1,8 @@
 module Web.View.ContractStates.Edit where
 import Web.View.Prelude
 
-data EditView = EditView { contractState :: ContractState, detailPartnerStates::[ContractPartnerState]}
--- , contractPartnerStates :: ContractPartnerStates
+data EditView = EditView { contractState :: ContractState,
+    contractPartnerStates ::[ContractPartnerState] , partnerStates :: [PartnerState]}
 
 instance View EditView where
     html EditView { .. } = [hsx|
@@ -14,10 +14,10 @@ instance View EditView where
             </ol>
         </nav>
         <h1>Edit ContractState</h1>
-        {renderForm contractState detailPartnerStates}
+        {renderForm contractState partnerStates}
     |]
 
-renderForm :: ContractState -> [ContractPartnerState] -> Html
+renderForm :: ContractState -> [PartnerState] -> Html
 renderForm contractState partners = formFor contractState [hsx|
     {(textField #refValidfromversion)}
     {(textField #refValidthruversion)}
@@ -34,9 +34,9 @@ renderForm contractState partners = formFor contractState [hsx|
     {submitButton}
 |]
 
-renderPartnerState :: ContractPartnerState -> Html
-renderPartnerState contractPartnerState = [hsx|
+renderPartnerState :: PartnerState -> Html
+renderPartnerState partnerState = [hsx|
     <div>
-       Bubu { get #id contractPartnerState }
+       { get #content partnerState }
     </div>
 |]

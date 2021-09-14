@@ -20,7 +20,7 @@ run = do
     wfp ::Workflow <- newRecord |> set #refUser (get #id usr) |> set #historyType HistorytypePartner |> set #validfrom validfrom0 |> set #workflowType WftypeNew |> createRecord
     wft ::Workflow <- newRecord |> set #refUser (get #id usr) |> set #historyType HistorytypeTariff |> set #validfrom validfrom0 |> set #workflowType WftypeNew |> createRecord  
     let c0 :: ContractState = newRecord |> set #content "initial"
-        p0 :: PartnerState = newRecord |> set #content "initial"
+        p0 :: PartnerState = newRecord |> set #content "FIRST PARTNER"
         t0 :: TariffState = newRecord |> set #content "initial"
     csk@(contractState,contractKeys)::(ContractState, StateKeys (Id Contract)(Id ContractState)) <- createHistory contract wfc c0
     Log.info $ show $ snd csk
@@ -46,12 +46,12 @@ run = do
 --
     let validfrom2 :: Day = fromGregorian 2021 6 1
     runMutation contract usr HistorytypeContract (fst csk) validfrom2 "2nd mutatated ContractState"
---    runMutation partner usr HistorytypePartner (fst psk) validfrom2  "mutatated PartnerState"
+--    runMutation partner usr HistorytypePartner (fst psk) validfrom2  "Once mutated First Partner"
 --    runMutation tariff usr HistorytypeTariff (fst tsk)  validfrom2  "mutatated TariffState"
 --
     let validfrom3 :: Day = fromGregorian 2021 8 1
     runMutation contract usr HistorytypeContract (fst csk) validfrom3 "3rd mutatated ContractState"
---    runMutation partner usr HistorytypePartner (fst psk) validfrom3  "mutatated PartnerState"
+--    runMutation partner usr HistorytypePartner (fst psk) validfrom3  "Twice mutated  First Partner"
 --    runMutation tariff usr HistorytypeTariff (fst tsk)  validfrom3  "mutatated TariffState"
 --
 --    forEach (persistenceLogC ++ persistenceLogP ++ persistenceLogT) \pl -> do

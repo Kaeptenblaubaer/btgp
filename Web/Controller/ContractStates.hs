@@ -22,12 +22,14 @@ instance Controller ContractStatesController where
 
     action EditContractStateAction { contractStateId } = do
         contractState <- fetch contractStateId
-        detailPartnerStates :: [ContractPartnerState] <- query @ContractPartnerState|> filterWhere(#refContract, get #id contractState) |> fetch
+        contractPartnerStates :: [ContractPartnerState] <- query @ContractPartnerState|> filterWhere(#refContract, get #id contractState) |> fetch
+        partnerStates <- query @PartnerState |> filterWhereIn (#id, map (\cps -> get #refPartner cps ) contractPartnerStates) |> fetch
         render EditView { .. }
 
     action UpdateContractStateAction { contractStateId } = do
         contractState <- fetch contractStateId
-        detailPartnerStates :: [ContractPartnerState]<- query @ContractPartnerState|> filterWhere(#refContract, get #id contractState) |> fetch
+        contractPartnerStates :: [ContractPartnerState] <- query @ContractPartnerState|> filterWhere(#refContract, get #id contractState) |> fetch
+        partnerStates <-  query @PartnerState |> filterWhereIn (#id, map (\cps -> get #refPartner cps ) contractPartnerStates) |> fetch
         contractState
             |> buildContractState
             |> ifValid \case
