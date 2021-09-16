@@ -37,6 +37,7 @@ renderForm workflow = formFor workflow [hsx|
     {(textField #progress)}
     {(dateField #validfrom)}
     {(textField #workflowStatus)}
-    {workflowMenu}
+    {workflowMenu emptyHtml}
     {submitButton}
 |]
+

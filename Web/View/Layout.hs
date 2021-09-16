@@ -1,4 +1,4 @@
-module Web.View.Layout (defaultLayout, Html, workflowMenu) where
+module Web.View.Layout (defaultLayout, Html, workflowMenu, emptyHtml) where
 
 import IHP.ViewPrelude
 import IHP.Environment
@@ -62,14 +62,18 @@ metaTags = [hsx|
     {autoRefreshMeta}
 |]
 
-workflowMenu = [hsx|
+workflowMenu :: Html -> Html
+workflowMenu additionalOptions = [hsx|
     <div><p>Workflow Command
         <select name="Workflow">
-        <option value="SelPartnerState">Select Partner</option>
+        {additionalOptions}
         <option value="Next">Next</option>
         <option value="Suspend">Suspend</option>
         <option value="Commit">Commit</option>
         <option value="Rollback">Rollback</option>
-    </select></p>
+        </select></p>
     </div>
 |]
+
+emptyHtml :: Html
+emptyHtml = [hsx||]

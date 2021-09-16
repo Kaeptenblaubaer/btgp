@@ -30,7 +30,7 @@ renderForm contractState partners = formFor contractState [hsx|
         <option value="SelectInsuredPerson">Insured Person</option>
     </select></p>
     </div>
-    {workflowMenu}
+    {workflowMenu selectPartnerWorkflowOption}
     {submitButton}
 |]
 
@@ -39,4 +39,8 @@ renderPartnerState partnerState = [hsx|
     <div>
        { get #content partnerState }
     </div>
+|]
+
+selectPartnerWorkflowOption = [hsx|
+    <option value="SelPartnerState">Select Partner</option>
 |]
