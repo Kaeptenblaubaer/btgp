@@ -58,7 +58,7 @@ instance ToJSON (StateKeys  (Id' "tariffs")(Id' "tariff_states"))
 instance FromJSON WorkflowProgress
 instance ToJSON WorkflowProgress
 
-workflowProgressDefault = ( WorkflowProgress (Just stateKeysDefault) (Just stateKeysDefault) (Just stateKeysDefault) [] )
+workflowProgressDefault = WorkflowProgress (Just stateKeysDefault) (Just stateKeysDefault) (Just stateKeysDefault) [] 
 
 getWfp :: Workflow -> Maybe WorkflowProgress
 getWfp workflow  =  decode $ encode $ get #progress workflow
@@ -72,7 +72,7 @@ instance (FromJSON a) => FromJSON (CRULog a)
 
 data PersistenceLog =
     WorkflowPL (CRULog (Id Workflow)) | HistoryPL (CRULog (Id History)) | VersionPL (CRULog (Id Version)) | ContractPL (CRULog (Id Contract)) | ContractStatePL (CRULog (Id ContractState)) | 
-    PartnerPL (CRULog (Id Partner))| PartnerStatePL (CRULog (Id PartnerState))| TariffPL (CRULog (Id Tariff)) | TariffStatePL (CRULog (Id TariffState))
+    PartnerPL (CRULog (Id Partner))| PartnerStatePL (CRULog (Id PartnerState))| ContractPartnerStatePL (CRULog (Id ContractPartnerState)) | TariffPL (CRULog (Id Tariff)) | TariffStatePL (CRULog (Id TariffState)) 
     deriving (Generic, Show)
 
 instance ToJSON PersistenceLog
@@ -171,6 +171,16 @@ instance HasTxnLog Tariff where
 instance HasTxnLog TariffState where 
     mkPersistenceLogState :: CRULog (Id TariffState) -> PersistenceLog
     mkPersistenceLogState cru = TariffStatePL cru
+instance HasTxnLog ContractPartnerState where 
+    mkPersistenceLogState :: CRULog (Id ContractPartnerState) -> PersistenceLog
+    mkPersistenceLogState cru = ContractPartnerStatePL cru
 
-getPLOG :: Workflow -> Maybe [PersistenceLog]
-getPLOG workflow  =  decode $ encode $ get #progress workflow
+getPLog :: Workflow -> [PersistenceLog] 
+getPLog workflow = maybe  [] (plog) (decode $ encode $ get #progress workflow)
+
+setPLog :: Workflow -> [PersistenceLog] -> Workflow
+setPLog workflow  pl =  do
+    let wfp = case decode $ encode $ get #progress workflow of
+            Nothing -> workflowProgressDefault {plog=pl}
+            Just wfp -> wfp {plog=pl++plog wfp}
+    setWfp workflow wfp

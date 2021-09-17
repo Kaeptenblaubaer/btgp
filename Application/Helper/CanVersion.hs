@@ -293,8 +293,8 @@ instance CanVersion Tariff TariffState where
     setWorkFlowState wfp s = wfp  {tariff = s} 
 
 
-putPartnerState :: (?context::ControllerContext, ?modelContext :: ModelContext) => (Id ContractState) -> (Id PartnerState) -> IO()
-putPartnerState contractStateId partnerStateId = do
+putPartnerState :: (?context::ControllerContext, ?modelContext :: ModelContext) => (Id ContractState) -> (Id PartnerState) -> [PersistenceLog]-> IO([PersistenceLog])
+putPartnerState contractStateId partnerStateId pLog = do
     contractState <- fetch contractStateId
     partnerState <- fetch partnerStateId
     contract <- fetch (get #refEntity contractState) 
@@ -302,4 +302,6 @@ putPartnerState contractStateId partnerStateId = do
     newContractPartnerState :: ContractPartnerState <- newRecord |> set #refEntity (get #id newContractPartner) |> 
         set #refContract (get #id contractState) |> set #refPartner (get #id partnerState) |>
         set #refValidfromversion (get #refValidfromversion contractState) |> set #refValidthruversion Nothing |> createRecord
+    let cpsLog = ( mkPersistenceLogState $ mkInsertLog $ get #id newContractPartnerState ) : pLog
     setSuccessMessage "new ContractStatePartnerState"
+    pure cpsLog
