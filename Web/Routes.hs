@@ -20,3 +20,6 @@ instance AutoRoute WorkflowsController where
 
 instance AutoRoute PartnerStatesController where
     autoRoute = autoRouteWithIdType (parseIntegerId @(Id PartnerState))
+
+instance AutoRoute HistoriesController
+

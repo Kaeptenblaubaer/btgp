@@ -51,3 +51,13 @@ data PartnerStatesController
     | UpdatePartnerStateAction { partnerStateId :: !(Id PartnerState) }
     | DeletePartnerStateAction { partnerStateId :: !(Id PartnerState) }
     deriving (Eq, Show, Data)
+
+data HistoriesController
+    = HistoriesAction
+    | NewHistoryAction
+    | ShowHistoryAction { historyId :: !(Id History) }
+    | CreateHistoryAction
+    | EditHistoryAction { historyId :: !(Id History) }
+    | UpdateHistoryAction { historyId :: !(Id History) }
+    | DeleteHistoryAction { historyId :: !(Id History) }
+    deriving (Eq, Show, Data)
