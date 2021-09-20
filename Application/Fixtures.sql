@@ -50,25 +50,11 @@ ALTER TABLE public.contracts DISABLE TRIGGER ALL;
 ALTER TABLE public.contracts ENABLE TRIGGER ALL;
 
 
-ALTER TABLE public.partners DISABLE TRIGGER ALL;
-
-
-
-ALTER TABLE public.partners ENABLE TRIGGER ALL;
-
-
 ALTER TABLE public.versions DISABLE TRIGGER ALL;
 
 
 
 ALTER TABLE public.versions ENABLE TRIGGER ALL;
-
-
-ALTER TABLE public.contract_partner_states DISABLE TRIGGER ALL;
-
-
-
-ALTER TABLE public.contract_partner_states ENABLE TRIGGER ALL;
 
 
 ALTER TABLE public.contract_states DISABLE TRIGGER ALL;
@@ -78,11 +64,25 @@ ALTER TABLE public.contract_states DISABLE TRIGGER ALL;
 ALTER TABLE public.contract_states ENABLE TRIGGER ALL;
 
 
+ALTER TABLE public.partners DISABLE TRIGGER ALL;
+
+
+
+ALTER TABLE public.partners ENABLE TRIGGER ALL;
+
+
 ALTER TABLE public.partner_states DISABLE TRIGGER ALL;
 
 
 
 ALTER TABLE public.partner_states ENABLE TRIGGER ALL;
+
+
+ALTER TABLE public.contract_partner_states DISABLE TRIGGER ALL;
+
+
+
+ALTER TABLE public.contract_partner_states ENABLE TRIGGER ALL;
 
 
 ALTER TABLE public.roles DISABLE TRIGGER ALL;
@@ -119,15 +119,15 @@ SELECT pg_catalog.setval('public.contract_partner_states_id_seq', 1, false);
 
 
 
-SELECT pg_catalog.setval('public.contract_partner_states_ref_contract_seq', 1, false);
-
-
-
 SELECT pg_catalog.setval('public.contract_partner_states_ref_entity_seq', 1, false);
 
 
 
-SELECT pg_catalog.setval('public.contract_partner_states_ref_partner_seq', 1, false);
+SELECT pg_catalog.setval('public.contract_partner_states_ref_source_seq', 1, false);
+
+
+
+SELECT pg_catalog.setval('public.contract_partner_states_ref_target_seq', 1, false);
 
 
 

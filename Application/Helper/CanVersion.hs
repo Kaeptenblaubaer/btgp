@@ -136,7 +136,7 @@ class (Show e, KnownSymbol (GetTableName e), e ~ GetModelByTableName (GetTableNa
             cruV :: PersistenceLog  = mkPersistenceLogState $ mkInsertLog $ get #id version
             pl :: [PersistenceLog] = [cruE, cruS, cruW, cruH, cruV]
             sk :: StateKeys (Id e)(Id s) = stateKeysDefault {history = Just historyUUID, version = Just versionId, entity = Just entityId, state = Just stateId}
-            wfp = setWorkFlowState (WorkflowProgress Nothing Nothing Nothing []) $ Just sk 
+            wfp = setWorkFlowState (WorkflowProgress Nothing Nothing Nothing Nothing []) $ Just sk 
             progress = toJSON wfp {plog = pl}
         uptodate ::Workflow <- workflow |> set #progress progress |> updateRecord
         Log.info ("hier ist Workflow mit JSON " ++ show (get #progress uptodate))
@@ -246,6 +246,7 @@ queryEntityStateByValidFromMaxTxn historyType fieldList =  do
         limitOffset = case fieldList of
             "es.*" -> "limit ? offset ? "
             "count(*)" -> ""
+            _ -> ""
         qryFS = "select " ++ fieldList ++ " from %s es join %s e on es.ref_entity = e.id where (e.ref_history, ref_validfromversion) in " ++
             "(select h.id, MAX(v.id) from versions v join histories h on v.ref_history = h.id " ++
             "where h.history_type = ?  and v.validfrom <= ? and v.createdat < ? " ++
@@ -263,10 +264,10 @@ countStatesByValidFromMaxTxn historyType valid maxtxn= do
     Log.info $ "Count " ++ show count  
     pure count    
 
-selectStatesByValidFromMaxTxn :: (?modelContext :: ModelContext,?context::context, LoggingProvider context, CanVersion r rs) => HistoryType -> Day -> UTCTime -> PT.Options -> PT.Pagination -> IO ([rs],Pagination)
+selectStatesByValidFromMaxTxn :: (?modelContext :: ModelContext,?context::context, LoggingProvider context, CanVersion relation relationState) => HistoryType -> Day -> UTCTime -> PT.Options -> PT.Pagination -> IO ([relationState],Pagination)
 selectStatesByValidFromMaxTxn historyType valid maxtxn options pagination = do            
     Log.info $ "Pagination "  ++ show pagination     
-    result :: [rs] <- sqlQuery (queryEntityStateByValidFromMaxTxn historyType "es.*") (historyType,valid, maxtxn, pageSize pagination, ((currentPage pagination) -1) * pageSize pagination)
+    result :: [relationState] <- sqlQuery (queryEntityStateByValidFromMaxTxn historyType "es.*") (historyType,valid, maxtxn, pageSize pagination, ((currentPage pagination) -1) * pageSize pagination)
     pure (result,pagination {currentPage=(currentPage pagination) +1})
 
 instance CanVersion Contract ContractState where
@@ -294,43 +295,23 @@ instance CanVersion Tariff TariffState where
     setWorkFlowState :: WorkflowProgress ->Maybe (StateKeys (Id'"tariffs")(Id' "tariff_states")) -> WorkflowProgress
     setWorkFlowState wfp s = wfp  {tariff = s} 
 
+instance CanVersion ContractPartner ContractPartnerState where
+    getAccessor :: (WorkflowProgress ->Maybe (StateKeys (Id'"contract_partners")(Id' "contract_partner_states")))
+    getAccessor = contractPartner
 
-putPartnerState :: (?context::ControllerContext, ?modelContext :: ModelContext) => (Id ContractState) -> (Id PartnerState) -> [PersistenceLog]-> IO([PersistenceLog])
-putPartnerState contractStateId partnerStateId pLog = do
-    contractState <- fetch contractStateId
-    partnerState <- fetch partnerStateId
-    contract <- fetch (get #refEntity contractState) 
-    newContractPartner :: ContractPartner <- newRecord |> set #refHistory (get #refHistory contract) |> createRecord
-    newContractPartnerState :: ContractPartnerState <- newRecord |> set #refEntity (get #id newContractPartner) |> 
-        set #refSource (get #id contractState) |> set #refTarget (get #id partnerState) |>
-        set #refValidfromversion (get #refValidfromversion contractState) |> set #refValidthruversion Nothing |> createRecord
-    let cpsLog = ( mkPersistenceLogState $ mkInsertLog $ get #id newContractPartnerState ) : pLog
-    setSuccessMessage "new ContractStatePartnerState"
-    pure cpsLog
-
--- class (Show e, KnownSymbol (GetTableName e), e ~ GetModelByTableName (GetTableName e), PrimaryKey (GetTableName e) ~ Integer, Record e,
---     CanCreate e, CanUpdate e, Fetchable (QueryBuilder (GetTableName e))  e, FromRow e,
---     HasField "id" e (Id e), Show (PrimaryKey (GetTableName e)), HasField "refHistory" e (Id History),SetField "refHistory" e (Id History),HasTxnLog e,
---     Show s, KnownSymbol (GetTableName s), s ~ GetModelByTableName (GetTableName s), PrimaryKey (GetTableName s) ~ Integer, Record s,
---     CanCreate s, CanUpdate s, Fetchable (QueryBuilder (GetTableName s))  s, FromRow s,
---     HasField "id" s (Id s), Show (PrimaryKey (GetTableName s)), HasField "refEntity" s (Id e),SetField "refEntity" s (Id e),
---     HasField "refValidfromversion" s (Id Version), SetField "refValidfromversion" s (Id Version),
---     HasField "refValidthruversion" s (Maybe(Id Version)), SetField "refValidthruversion" s (Maybe (Id Version)),
---     HasField "content" s Text, SetField "content" s Text, HasTxnLog s) => CanVersion e s 
---     where
-
-class (CanVersion es s, CanVersion et t, CanVersion r rs, HasField "refSource" r (Id s), SetField "refSource" rs (Id s), HasField "refTarget" rs (Id t), SetField "refTarget" r (Id t)) => CanVersionRelated es s et t r rs
+class (CanVersion sourceEntity sourceState, CanVersion targetEntity targetState, CanVersion relation relationState, HasField "refSource" relationState (Id sourceState), SetField "refSource" relationState (Id sourceState), HasField "refTarget" relationState (Id targetState), SetField "refTarget" relationState (Id targetState)) => CanVersionRelation sourceEntity sourceState targetEntity targetState relation relationState
     where
-    putRelState :: (?context::ControllerContext, ?modelContext :: ModelContext) => (Id s) -> (Id t) -> [PersistenceLog]-> IO((rs,[PersistenceLog]))
-    putRelState sid tid pLog = do
-        src :: s <- fetch sid
-        tgt :: t <- fetch tid
-        srcEntity :: es <- fetch (get #refEntity src) 
-        newRelation :: r <- newRecord |> set #refHistory (get #refHistory srcEntity) |> createRecord
-        newRelationState :: rs <- newRecord |> set #refEntity (get #id newRelation) |> 
+    putRelState :: (?modelContext::ModelContext, ?context::context, LoggingProvider context) => (WorkflowProgress ->  Maybe (StateKeys (Id relation)(Id relationState))) -> (Id sourceState) -> (Id targetState) -> [PersistenceLog]-> IO([PersistenceLog])
+    putRelState accessor sid tid pLog = do
+        src :: sourceState <- fetch sid
+        tgt :: targetState <- fetch tid
+        srcEntity :: sourceEntity <- fetch (get #refEntity src) 
+        newRelation :: relation <- newRecord |> set #refHistory (get #refHistory srcEntity) |> createRecord
+        newRelationState :: relationState <- newRecord |> set #refEntity (get #id newRelation) |> 
             set #refSource sid |> set #refTarget tid |>
             set #refValidfromversion (get #refValidfromversion src) |> set #refValidthruversion Nothing |> createRecord
         let cpsLog = ( mkPersistenceLogState $ mkInsertLog $ get #id newRelationState ) : pLog
-        setSuccessMessage "new ContractStatePartnerState"
-        pure (newRelationState,cpsLog)
+        -- setSuccessMessage "new ContractStatePartnerState"
+        pure cpsLog
 
+instance CanVersionRelation Contract ContractState Partner PartnerState ContractPartner ContractPartnerState

@@ -40,7 +40,8 @@ run = do
     newContractPartner :: ContractPartner <- newRecord |> set #refHistory (Id (fromJust (history contractKeys))) |> createRecord
     newContractPartnerState :: ContractPartnerState <- newRecord |> set #refEntity (get #id newContractPartner) |> 
         set #refSource (get #id contractState) |> set #refTarget (get #id partnerState) |>
-        set #refValidfromversion (get #refValidfromversion contractState) |> set #refValidthruversion Nothing |> createRecord
+           set #refValidfromversion (get #refValidfromversion contractState) |> set #refValidthruversion Nothing |> createRecord
+    bubu <- putRelState contractPartner (get #id contractState) (get #id partnerState) []
 --    runMutation partner usr HistorytypePartner (fst psk) validfrom1  "mutatated PartnerState"
 --    runMutation tariff usr HistorytypeTariff (fst tsk)  validfrom1  "mutatated TariffState"
 --

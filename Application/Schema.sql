@@ -85,7 +85,8 @@ CREATE TABLE contract_partner_states (
     ref_validthruversion BIGINT,
     ref_target BIGSERIAL NOT NULL,
     ref_source BIGSERIAL NOT NULL,
-    ref_entity BIGSERIAL NOT NULL
+    ref_entity BIGSERIAL NOT NULL,
+    content TEXT NOT NULL
 );
 ALTER TABLE contract_partner_states ADD CONSTRAINT contract_partner_states_ref_ref_entity FOREIGN KEY (ref_entity) REFERENCES contract_partners (id) ON DELETE NO ACTION;
 ALTER TABLE contract_partner_states ADD CONSTRAINT contract_partner_states_ref_ref_source FOREIGN KEY (ref_source) REFERENCES contract_states (id) ON DELETE NO ACTION;

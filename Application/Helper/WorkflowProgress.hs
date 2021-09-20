@@ -45,7 +45,7 @@ data StateKeys entityId stateId = StateKeys  {
 stateKeysDefault = StateKeys Nothing Nothing Nothing Nothing Nothing 
 
 data WorkflowProgress = WorkflowProgress {
-    contract :: Maybe (StateKeys (Id' "contracts")(Id' "contract_states")), partner:: Maybe (StateKeys (Id' "partners")(Id' "partner_states")) , tariff :: Maybe (StateKeys (Id' "tariffs")(Id' "tariff_states")),
+    contract :: Maybe (StateKeys (Id' "contracts")(Id' "contract_states")), partner:: Maybe (StateKeys (Id' "partners")(Id' "partner_states")) , contractPartner:: Maybe (StateKeys (Id' "contract_partners")(Id' "contract_partner_states")) , tariff :: Maybe (StateKeys (Id' "tariffs")(Id' "tariff_states")),
     plog :: [PersistenceLog]
     } deriving (Show, Generic)
 
@@ -53,12 +53,14 @@ instance FromJSON (StateKeys  (Id' "contracts")(Id' "contract_states"))
 instance ToJSON (StateKeys  (Id' "contracts")(Id' "contract_states"))
 instance FromJSON (StateKeys  (Id' "partners")(Id' "partner_states"))
 instance ToJSON (StateKeys  (Id' "partners")(Id' "partner_states"))
+instance FromJSON (StateKeys  (Id' "contract_partners")(Id' "contract_partner_states"))
+instance ToJSON (StateKeys  (Id' "contract_partners")(Id' "contract_partner_states"))
 instance FromJSON (StateKeys  (Id' "tariffs")(Id' "tariff_states"))
 instance ToJSON (StateKeys  (Id' "tariffs")(Id' "tariff_states"))
 instance FromJSON WorkflowProgress
 instance ToJSON WorkflowProgress
 
-workflowProgressDefault = WorkflowProgress (Just stateKeysDefault) (Just stateKeysDefault) (Just stateKeysDefault) [] 
+workflowProgressDefault = WorkflowProgress (Just stateKeysDefault) (Just stateKeysDefault) (Just stateKeysDefault)(Just stateKeysDefault) [] 
 
 getWfp :: Workflow -> Maybe WorkflowProgress
 getWfp workflow  =  decode $ encode $ get #progress workflow
@@ -72,7 +74,7 @@ instance (FromJSON a) => FromJSON (CRULog a)
 
 data PersistenceLog =
     WorkflowPL (CRULog (Id Workflow)) | HistoryPL (CRULog (Id History)) | VersionPL (CRULog (Id Version)) | ContractPL (CRULog (Id Contract)) | ContractStatePL (CRULog (Id ContractState)) | 
-    PartnerPL (CRULog (Id Partner))| PartnerStatePL (CRULog (Id PartnerState))| ContractPartnerStatePL (CRULog (Id ContractPartnerState)) | TariffPL (CRULog (Id Tariff)) | TariffStatePL (CRULog (Id TariffState)) 
+    PartnerPL (CRULog (Id Partner))| PartnerStatePL (CRULog (Id PartnerState))| ContractPartnerPL (CRULog (Id ContractPartner)) | ContractPartnerStatePL (CRULog (Id ContractPartnerState)) | TariffPL (CRULog (Id Tariff)) | TariffStatePL (CRULog (Id TariffState)) 
     deriving (Generic, Show)
 
 instance ToJSON PersistenceLog
@@ -171,6 +173,9 @@ instance HasTxnLog Tariff where
 instance HasTxnLog TariffState where 
     mkPersistenceLogState :: CRULog (Id TariffState) -> PersistenceLog
     mkPersistenceLogState cru = TariffStatePL cru
+instance HasTxnLog ContractPartner where 
+    mkPersistenceLogState :: CRULog (Id ContractPartner) -> PersistenceLog
+    mkPersistenceLogState cru = ContractPartnerPL cru
 instance HasTxnLog ContractPartnerState where 
     mkPersistenceLogState :: CRULog (Id ContractPartnerState) -> PersistenceLog
     mkPersistenceLogState cru = ContractPartnerStatePL cru

@@ -73,9 +73,9 @@ instance Controller WorkflowsController where
                             case cmd of
                                 "SelPartnerState" -> redirectTo $ SelectPartnerStateAction
                                 "UpdateContractStatePartnerState" -> do
-                                    let partnerStateId :: Integer = param "partnerStateId"
+                                    let partnerStateId :: (Id PartnerState) = (Id (param "partnerStateId"))
                                     Log.info $ "UpdateContractStatePartnerState cs=" ++ show sid ++ " ps=" ++ show partnerStateId
-                                    pLog <-putPartnerState sid (Id partnerStateId) (getPLog workflow)
+                                    pLog <-putRelState contractPartner sid partnerStateId (getPLog workflow)
                                     workflowUpd <- setPLog workflow pLog |> updateRecord
                                     redirectTo $ EditContractStateAction sid
                                 "Next" -> redirectTo $ EditContractStateAction sid
