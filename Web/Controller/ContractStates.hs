@@ -18,20 +18,20 @@ instance Controller ContractStatesController where
 
     action ShowContractStateAction { contractStateId } = do
         contractState <- fetch contractStateId
-        contractPartnerStates :: [ContractPartnerState] <- query @ContractPartnerState|> filterWhere(#refContract, get #id contractState) |> fetch
-        partnerStates <- query @PartnerState |> filterWhereIn (#id, map (\cps -> get #refPartner cps ) contractPartnerStates) |> fetch
+        contractPartnerStates :: [ContractPartnerState] <- query @ContractPartnerState|> filterWhere(#refSource, get #id contractState) |> fetch
+        partnerStates <- query @PartnerState |> filterWhereIn (#id, map (\cps -> get #refTarget cps ) contractPartnerStates) |> fetch
         render ShowView { .. }
 
     action EditContractStateAction { contractStateId } = do
         contractState <- fetch contractStateId
-        contractPartnerStates :: [ContractPartnerState] <- query @ContractPartnerState|> filterWhere(#refContract, get #id contractState) |> fetch
-        partnerStates <- query @PartnerState |> filterWhereIn (#id, map (\cps -> get #refPartner cps ) contractPartnerStates) |> fetch
+        contractPartnerStates :: [ContractPartnerState] <- query @ContractPartnerState|> filterWhere(#refSource, get #id contractState) |> fetch
+        partnerStates <- query @PartnerState |> filterWhereIn (#id, map (\cps -> get #refTarget cps ) contractPartnerStates) |> fetch
         render EditView { .. }
 
     action UpdateContractStateAction { contractStateId } = do
         contractState <- fetch contractStateId
-        contractPartnerStates :: [ContractPartnerState] <- query @ContractPartnerState|> filterWhere(#refContract, get #id contractState) |> fetch
-        partnerStates <-  query @PartnerState |> filterWhereIn (#id, map (\cps -> get #refPartner cps ) contractPartnerStates) |> fetch
+        contractPartnerStates :: [ContractPartnerState] <- query @ContractPartnerState|> filterWhere(#refSource, get #id contractState) |> fetch
+        partnerStates <-  query @PartnerState |> filterWhereIn (#id, map (\cps -> get #refTarget cps ) contractPartnerStates) |> fetch
         contractState
             |> buildContractState
             |> ifValid \case

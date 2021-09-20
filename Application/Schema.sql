@@ -83,13 +83,13 @@ CREATE TABLE contract_partner_states (
     id BIGSERIAL PRIMARY KEY NOT NULL,
     ref_validfromversion BIGINT NOT NULL,
     ref_validthruversion BIGINT,
-    ref_partner BIGSERIAL NOT NULL,
-    ref_contract BIGSERIAL NOT NULL,
+    ref_target BIGSERIAL NOT NULL,
+    ref_source BIGSERIAL NOT NULL,
     ref_entity BIGSERIAL NOT NULL
 );
-ALTER TABLE contract_partner_states ADD CONSTRAINT contract_partner_states_ref_ref_contract_state FOREIGN KEY (ref_contract) REFERENCES contract_states (id) ON DELETE NO ACTION;
 ALTER TABLE contract_partner_states ADD CONSTRAINT contract_partner_states_ref_ref_entity FOREIGN KEY (ref_entity) REFERENCES contract_partners (id) ON DELETE NO ACTION;
-ALTER TABLE contract_partner_states ADD CONSTRAINT contract_partner_states_ref_ref_partner_states FOREIGN KEY (ref_partner) REFERENCES partner_states (id) ON DELETE NO ACTION;
+ALTER TABLE contract_partner_states ADD CONSTRAINT contract_partner_states_ref_ref_source FOREIGN KEY (ref_source) REFERENCES contract_states (id) ON DELETE NO ACTION;
+ALTER TABLE contract_partner_states ADD CONSTRAINT contract_partner_states_ref_ref_target FOREIGN KEY (ref_target) REFERENCES partner_states (id) ON DELETE NO ACTION;
 ALTER TABLE contract_partner_states ADD CONSTRAINT contract_partner_states_ref_ref_validfromversion FOREIGN KEY (ref_validfromversion) REFERENCES versions (id) ON DELETE CASCADE;
 ALTER TABLE contract_partner_states ADD CONSTRAINT contract_partner_states_ref_ref_validthruversion FOREIGN KEY (ref_validthruversion) REFERENCES versions (id) ON DELETE CASCADE;
 ALTER TABLE contract_partners ADD CONSTRAINT contract_partners_ref_ref_history FOREIGN KEY (ref_history) REFERENCES histories (id) ON DELETE NO ACTION;

@@ -2,6 +2,8 @@ module Application.Helper.CanVersion where
 {-# LANGUAGE DeriveGeneric  #-}
 {-# LANGUAGE DeriveAnyClass  #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE AllowAmbiguousTypes #-}
+
 
 import GHC.Exts
 import GHC.Records
@@ -300,8 +302,35 @@ putPartnerState contractStateId partnerStateId pLog = do
     contract <- fetch (get #refEntity contractState) 
     newContractPartner :: ContractPartner <- newRecord |> set #refHistory (get #refHistory contract) |> createRecord
     newContractPartnerState :: ContractPartnerState <- newRecord |> set #refEntity (get #id newContractPartner) |> 
-        set #refContract (get #id contractState) |> set #refPartner (get #id partnerState) |>
+        set #refSource (get #id contractState) |> set #refTarget (get #id partnerState) |>
         set #refValidfromversion (get #refValidfromversion contractState) |> set #refValidthruversion Nothing |> createRecord
     let cpsLog = ( mkPersistenceLogState $ mkInsertLog $ get #id newContractPartnerState ) : pLog
     setSuccessMessage "new ContractStatePartnerState"
     pure cpsLog
+
+-- class (Show e, KnownSymbol (GetTableName e), e ~ GetModelByTableName (GetTableName e), PrimaryKey (GetTableName e) ~ Integer, Record e,
+--     CanCreate e, CanUpdate e, Fetchable (QueryBuilder (GetTableName e))  e, FromRow e,
+--     HasField "id" e (Id e), Show (PrimaryKey (GetTableName e)), HasField "refHistory" e (Id History),SetField "refHistory" e (Id History),HasTxnLog e,
+--     Show s, KnownSymbol (GetTableName s), s ~ GetModelByTableName (GetTableName s), PrimaryKey (GetTableName s) ~ Integer, Record s,
+--     CanCreate s, CanUpdate s, Fetchable (QueryBuilder (GetTableName s))  s, FromRow s,
+--     HasField "id" s (Id s), Show (PrimaryKey (GetTableName s)), HasField "refEntity" s (Id e),SetField "refEntity" s (Id e),
+--     HasField "refValidfromversion" s (Id Version), SetField "refValidfromversion" s (Id Version),
+--     HasField "refValidthruversion" s (Maybe(Id Version)), SetField "refValidthruversion" s (Maybe (Id Version)),
+--     HasField "content" s Text, SetField "content" s Text, HasTxnLog s) => CanVersion e s 
+--     where
+
+class (CanVersion es s, CanVersion et t, CanVersion r rs, HasField "refSource" r (Id s), SetField "refSource" rs (Id s), HasField "refTarget" rs (Id t), SetField "refTarget" r (Id t)) => CanVersionRelated es s et t r rs
+    where
+    putRelState :: (?context::ControllerContext, ?modelContext :: ModelContext) => (Id s) -> (Id t) -> [PersistenceLog]-> IO((rs,[PersistenceLog]))
+    putRelState sid tid pLog = do
+        src :: s <- fetch sid
+        tgt :: t <- fetch tid
+        srcEntity :: es <- fetch (get #refEntity src) 
+        newRelation :: r <- newRecord |> set #refHistory (get #refHistory srcEntity) |> createRecord
+        newRelationState :: rs <- newRecord |> set #refEntity (get #id newRelation) |> 
+            set #refSource sid |> set #refTarget tid |>
+            set #refValidfromversion (get #refValidfromversion src) |> set #refValidthruversion Nothing |> createRecord
+        let cpsLog = ( mkPersistenceLogState $ mkInsertLog $ get #id newRelationState ) : pLog
+        setSuccessMessage "new ContractStatePartnerState"
+        pure (newRelationState,cpsLog)
+
