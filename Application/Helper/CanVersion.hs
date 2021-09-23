@@ -21,7 +21,7 @@ import Database.PostgreSQL.Simple.FromField
 import Data.Text.Encoding ( encodeUtf8 )
 import Data.Text.Read as T (decimal)
 -- import Application.Helper.VersionTree
-import Application.Helper.WorkflowProgress
+import Application.Helper.WorkflowEnvironment
 import Text.Printf (printf)
 
 import IHP.Pagination.Types as PT
@@ -46,36 +46,36 @@ class (Show e, KnownSymbol (GetTableName e), e ~ GetModelByTableName (GetTableNa
     getKey m = case decimal $ recordToInputValue m of
                                     Left _ -> -1
                                     Right ( i , _) -> i
-    getAccessor :: (WorkflowProgress ->  Maybe (StateKeys (Id e)(Id s)))
-    getWorkFlowState :: WorkflowProgress ->  Maybe (StateKeys (Id e)(Id s))
-    getWorkFlowState wfp = getAccessor wfp
-    setWorkFlowState :: WorkflowProgress -> Maybe (StateKeys (Id e)(Id s)) -> WorkflowProgress
-    updateWfpV :: (WorkflowProgress ->  Maybe (StateKeys (Id e)(Id s))) -> WorkflowProgress -> UUID -> Id e -> Maybe Integer -> Maybe (Id s) -> Value
-    updateWfpV accessor wfp hId eId vIdMB sIdMB = fromJust $ decode $ encode $ setWorkFlowState wfp (Just ((fromJust $ accessor wfp) { history= Just hId, entity = Just eId, version= vIdMB, state= sIdMB } ))
-    initialWfpV:: (WorkflowProgress ->  Maybe (StateKeys (Id e)(Id s))) -> UUID -> Value
-    initialWfpV accessor h = fromJust $ decode $ encode $ setWorkFlowState workflowProgressDefault (Just ((fromJust $ accessor workflowProgressDefault) { history= Just h} ))
-    getStatehistoryIdMB :: (WorkflowProgress ->  Maybe (StateKeys (Id e)(Id s))) -> WorkflowProgress -> Maybe UUID
-    getStatehistoryIdMB accessor wfp = history =<< accessor wfp
-    getStateVersionIdMB :: (WorkflowProgress ->  Maybe (StateKeys (Id e)(Id s))) ->WorkflowProgress -> Maybe Integer
-    getStateVersionIdMB accessor wfp = version =<< accessor wfp
-    getEntityIdMB :: (WorkflowProgress ->  Maybe (StateKeys (Id e)(Id s))) ->WorkflowProgress -> Maybe (Id e)
-    getEntityIdMB  accessor wfp = entity =<< accessor wfp
-    getStateIdMB :: (WorkflowProgress ->  Maybe (StateKeys (Id e)(Id s))) ->WorkflowProgress -> Maybe (Id s)
-    getStateIdMB  accessor wfp = state =<< accessor wfp
+    getAccessor :: (WorkflowEnvironment ->  Maybe (StateKeys (Id e)(Id s)))
+    getWorkFlowState :: WorkflowEnvironment ->  Maybe (StateKeys (Id e)(Id s))
+    getWorkFlowState wfe = getAccessor wfe
+    setWorkFlowState :: WorkflowEnvironment -> Maybe (StateKeys (Id e)(Id s)) -> WorkflowEnvironment
+    updateWfpV :: (WorkflowEnvironment ->  Maybe (StateKeys (Id e)(Id s))) -> WorkflowEnvironment -> UUID -> Id e -> Maybe Integer -> Maybe (Id s) -> Value
+    updateWfpV accessor wfe hId eId vIdMB sIdMB = fromJust $ decode $ encode $ setWorkFlowState wfe (Just ((fromJust $ accessor wfe) { history= Just hId, entity = Just eId, version= vIdMB, state= sIdMB } ))
+    initialWfpV:: (WorkflowEnvironment ->  Maybe (StateKeys (Id e)(Id s))) -> UUID -> Value
+    initialWfpV accessor h = fromJust $ decode $ encode $ setWorkFlowState workflowEnvironmentDefault (Just ((fromJust $ accessor workflowEnvironmentDefault) { history= Just h} ))
+    getStatehistoryIdMB :: (WorkflowEnvironment ->  Maybe (StateKeys (Id e)(Id s))) -> WorkflowEnvironment -> Maybe UUID
+    getStatehistoryIdMB accessor wfe = history =<< accessor wfe
+    getStateVersionIdMB :: (WorkflowEnvironment ->  Maybe (StateKeys (Id e)(Id s))) ->WorkflowEnvironment -> Maybe Integer
+    getStateVersionIdMB accessor wfe = version =<< accessor wfe
+    getEntityIdMB :: (WorkflowEnvironment ->  Maybe (StateKeys (Id e)(Id s))) ->WorkflowEnvironment -> Maybe (Id e)
+    getEntityIdMB  accessor wfe = entity =<< accessor wfe
+    getStateIdMB :: (WorkflowEnvironment ->  Maybe (StateKeys (Id e)(Id s))) ->WorkflowEnvironment -> Maybe (Id s)
+    getStateIdMB  accessor wfe = state =<< accessor wfe
 
-    commitState :: (?modelContext::ModelContext, ?context::context, LoggingProvider context ) => (WorkflowProgress ->  Maybe (StateKeys (Id e)(Id s))) -> Workflow -> IO (Either Text Text)
+    commitState :: (?modelContext::ModelContext, ?context::context, LoggingProvider context ) => (WorkflowEnvironment ->  Maybe (StateKeys (Id e)(Id s))) -> Workflow -> IO (Either Text Text)
     commitState accessor workflow = do
         let workflowId = get #id workflow
         Log.info $ "ToCOmmitWF wf=" ++ show workflowId
-        let wfpMB = getWfp workflow
+        let wfpMB = getWfe workflow
         Log.info ("ende"::String)
         putStrLn "Ende commit"
         case wfpMB of
-            Just wfp -> do
-                case getStatehistoryIdMB accessor wfp of
-                    Just h -> case getStateVersionIdMB accessor wfp of
-                        Just v -> case getEntityIdMB accessor wfp of
-                            Just e -> case getStateIdMB accessor wfp of
+            Just wfe -> do
+                case getStatehistoryIdMB accessor wfe of
+                    Just h -> case getStateVersionIdMB accessor wfe of
+                        Just v -> case getEntityIdMB accessor wfe of
+                            Just e -> case getStateIdMB accessor wfe of
                                 Just s -> withTransaction do 
                                     Log.info $ "committing h:" ++ show h
                                     hUnlocked :: History <- fetch (Id h)
@@ -96,7 +96,7 @@ class (Show e, KnownSymbol (GetTableName e), e ~ GetModelByTableName (GetTableNa
                                                 sUpd :: s <- sOld |> set #refValidthruversion (Just (Id v)) |> updateRecord
                                                 Log.info $ "predecessor state terminated" ++ show s
                                         Nothing -> Log.info ("no predecessor state" ::String)
-                                    case getShadowed accessor wfp of
+                                    case getShadowed accessor wfe of
                                         Nothing -> Log.info ("No version" ::String)
                                         Just (shadow,shadowed) -> do
                                             updated :: [Version]<- sqlQuery "update versions v set ref_shadowedby = ? where id in ? returning * " (v, In shadowed)
@@ -115,7 +115,7 @@ class (Show e, KnownSymbol (GetTableName e), e ~ GetModelByTableName (GetTableNa
             Nothing -> do
                 pure $ Right "SHOULDN'T: empty progress data"
 
-    createHistory :: (?modelContext::ModelContext, ?context::context, LoggingProvider context ) => (WorkflowProgress ->  Maybe (StateKeys (Id e)(Id s))) -> Workflow -> s -> IO (s,StateKeys (Id e)(Id s))
+    createHistory :: (?modelContext::ModelContext, ?context::context, LoggingProvider context ) => (WorkflowEnvironment ->  Maybe (StateKeys (Id e)(Id s))) -> Workflow -> s -> IO (s,StateKeys (Id e)(Id s))
     createHistory accessor workflow state = do
         Log.info $ "createHistory for workflow: " ++ show (get #id workflow)
         history ::History <- newRecord |> set #historyType (get #historyType workflow) |> set #refOwnedByWorkflow (Just $ get #id workflow)|> createRecord
@@ -136,19 +136,19 @@ class (Show e, KnownSymbol (GetTableName e), e ~ GetModelByTableName (GetTableNa
             cruV :: PersistenceLog  = mkPersistenceLogState $ mkInsertLog $ get #id version
             pl :: [PersistenceLog] = [cruE, cruS, cruW, cruH, cruV]
             sk :: StateKeys (Id e)(Id s) = stateKeysDefault {history = Just historyUUID, version = Just versionId, entity = Just entityId, state = Just stateId}
-            wfp = setWorkFlowState (WorkflowProgress Nothing Nothing Nothing Nothing []) $ Just sk 
-            progress = toJSON wfp {plog = pl}
+            wfe = setWorkFlowState (WorkflowEnvironment Nothing Nothing Nothing Nothing []) $ Just sk 
+            progress = toJSON wfe {plog = pl}
         uptodate ::Workflow <- workflow |> set #progress progress |> updateRecord
         Log.info ("hier ist Workflow mit JSON " ++ show (get #progress uptodate))
         pure (state,sk)
     
-    getShadowed :: (WorkflowProgress ->  Maybe (StateKeys (Id e)(Id s))) -> WorkflowProgress -> Maybe (Integer,[Integer])
-    getShadowed accessor wfp = shadowed $ fromJust $ accessor wfp 
-    setShadowed :: (WorkflowProgress ->  Maybe (StateKeys (Id e)(Id s))) -> WorkflowProgress -> (Integer,[Integer]) -> WorkflowProgress
+    getShadowed :: (WorkflowEnvironment ->  Maybe (StateKeys (Id e)(Id s))) -> WorkflowEnvironment -> Maybe (Integer,[Integer])
+    getShadowed accessor wfe = shadowed $ fromJust $ accessor wfe 
+    setShadowed :: (WorkflowEnvironment ->  Maybe (StateKeys (Id e)(Id s))) -> WorkflowEnvironment -> (Integer,[Integer]) -> WorkflowEnvironment
 
-    mutateHistory :: (?modelContext::ModelContext, ?context::context, LoggingProvider context) => (WorkflowProgress ->  Maybe (StateKeys (Id e)(Id s))) -> Workflow -> s -> IO (Workflow, s)
+    mutateHistory :: (?modelContext::ModelContext, ?context::context, LoggingProvider context) => (WorkflowEnvironment ->  Maybe (StateKeys (Id e)(Id s))) -> Workflow -> s -> IO (Workflow, s)
     mutateHistory accessor workflow state = do
-        let wfprogress :: WorkflowProgress = fromJust $ getWfp workflow
+        let wfprogress :: WorkflowEnvironment = fromJust $ getWfe workflow
         let versionIdMB = getStateVersionIdMB accessor wfprogress
         Log.info $ "mutateHistory Update histoType/wfprogress/versionid" ++ show (get #historyType workflow) ++ show wfprogress ++ "/" ++ show versionIdMB
         case versionIdMB of
@@ -173,10 +173,10 @@ class (Show e, KnownSymbol (GetTableName e), e ~ GetModelByTableName (GetTableNa
         mstate <- query @s |> filterWhere (#refValidfromversion, versionId) |> fetchOne
         pure $ get #id mstate
 
-    queryVersionMutableValidfrom :: (?modelContext::ModelContext, ?context::context, LoggingProvider context) => (WorkflowProgress ->  Maybe (StateKeys (Id e)(Id s))) -> Workflow -> IO (Workflow,Version,[Version])
+    queryVersionMutableValidfrom :: (?modelContext::ModelContext, ?context::context, LoggingProvider context) => (WorkflowEnvironment ->  Maybe (StateKeys (Id e)(Id s))) -> Workflow -> IO (Workflow,Version,[Version])
     queryVersionMutableValidfrom accessor workflow = do
         Log.info $ "queryVersionMutableValidfrom Workflow=" ++ show workflow
-        let wfprogress :: WorkflowProgress = fromJust $ getWfp workflow
+        let wfprogress :: WorkflowEnvironment = fromJust $ getWfe workflow
             validfrom = tshow $ get #validfrom workflow
         Log.info $ "queryVersionMutableValidfrom workflowProgress:" ++ show wfprogress
         let historyId =  fromJust $ case get #historyType workflow of
@@ -193,20 +193,20 @@ class (Show e, KnownSymbol (GetTableName e), e ~ GetModelByTableName (GetTableNa
         shadowed :: [Version]  <- sqlQuery  q2 p2
         let shadowedIds :: [Integer] = map (getKey . get #id) shadowed  
         Log.info ( "queryVersionMutableValidfrom versionId / shadowed / workflowId =" ++ show versionId ++ "/" ++ show shadowedIds ++ "/" ++ show (get #id workflow))
-        workflow :: Workflow <- setWfp workflow (setShadowed accessor wfprogress (getKey versionId, shadowedIds)) |> updateRecord
-        Log.info ("queryVersionMutableValidfrom progress=" ++ show (getWfp workflow ))
+        workflow :: Workflow <- setWfe workflow (setShadowed accessor wfprogress (getKey versionId, shadowedIds)) |> updateRecord
+        Log.info ("queryVersionMutableValidfrom progress=" ++ show (getWfe workflow ))
         pure (workflow, fromJust $ head vs, shadowed)
             where getKey (Id key) = key
 
-    queryMutableState :: (?modelContext::ModelContext, ?context::context, LoggingProvider context )=> (WorkflowProgress ->  Maybe (StateKeys (Id e)(Id s)))-> Workflow -> IO (Workflow, s,[Version])
+    queryMutableState :: (?modelContext::ModelContext, ?context::context, LoggingProvider context )=> (WorkflowEnvironment ->  Maybe (StateKeys (Id e)(Id s)))-> Workflow -> IO (Workflow, s,[Version])
     queryMutableState accessor workflow =  do
         Log.info $ "queryMutableState workflow=" ++ show (get #progress workflow)
         (workflow,version,shadowed) :: (Workflow, Version,[Version]) <- queryVersionMutableValidfrom accessor workflow 
         Log.info $ "queryMutableState version=" ++ show version ++ " shadowed " ++ show shadowed
-        Log.info $ "queryMutableState wfp=" ++ show ( fromJust $ getWfp workflow )
-        let wfp = fromJust $ getWfp workflow 
-            h = fromJust $ getStatehistoryIdMB accessor wfp
-            e = fromJust $ getEntityIdMB accessor wfp
+        Log.info $ "queryMutableState wfe=" ++ show ( fromJust $ getWfe workflow )
+        let wfe = fromJust $ getWfe workflow 
+            h = fromJust $ getStatehistoryIdMB accessor wfe
+            e = fromJust $ getEntityIdMB accessor wfe
             v = get #id version
         mstate <- query @s |> filterWhere(#refEntity, e) |> filterWhereSql (#refValidfromversion, encodeUtf8("<= " ++ show v)) |>
                             queryOr 
@@ -215,18 +215,29 @@ class (Show e, KnownSymbol (GetTableName e), e ~ GetModelByTableName (GetTableNa
         Log.info ("queryMutableState shadow/shadowed=" ++ show version ++ " / " ++ show shadowed)
         pure (workflow, mstate,shadowed)
 
-    runMutation :: (?modelContext::ModelContext, ?context::context, LoggingProvider context, Show s, CanVersion e s) => (WorkflowProgress -> Maybe (StateKeys (Id e)(Id s))) -> User -> HistoryType -> s -> Day -> Text -> IO()
-    runMutation accessor usr histoType s validfrom newContent = do
-        Log.info $ ">>>>>>>>>>>>>>> runMutation start" ++ show histoType 
+    createCreationWorkflow :: (?modelContext::ModelContext, ?context::context, LoggingProvider context, Show s, CanVersion e s) => (WorkflowEnvironment -> Maybe (StateKeys (Id e)(Id s))) -> User -> HistoryType -> Day -> IO(Workflow)
+    createCreationWorkflow accessor usr histoType validfrom = do
+        wf ::Workflow <- newRecord |> set #refUser (get #id usr) |> set #historyType histoType |> set #validfrom validfrom |>  set #workflowType WftypeNew |> createRecord
+        pure wf
+        
+    createUpdateWorkflow :: (?modelContext::ModelContext, ?context::context, LoggingProvider context, Show s, CanVersion e s) => (WorkflowEnvironment -> Maybe (StateKeys (Id e)(Id s))) -> User -> HistoryType -> s -> Day -> IO(Workflow)
+    createUpdateWorkflow accessor usr histoType s validfrom = do
         let eId :: Id e = get #refEntity s
         Log.info $ "runMutation entity =" ++ show eId
         entity :: e <- fetch eId
         let hid :: (Id History) = get #refHistory entity
-            wfpJ :: Value = updateWfpV accessor workflowProgressDefault (fromId hid) eId Nothing Nothing 
+            wfpJ :: Value = updateWfpV accessor workflowEnvironmentDefault (fromId hid) eId Nothing Nothing 
         Log.info $ "runMutation history = " ++ show hid
         workflow <- newRecord |> set #refUser (get #id usr) |> set #historyType histoType |> set #workflowType WftypeUpdate |> 
             set #progress wfpJ |> set #validfrom validfrom |> createRecord
         Log.info $ "runMutation wfmut1 = " ++ show workflow
+        pure workflow
+
+    runMutation :: (?modelContext::ModelContext, ?context::context, LoggingProvider context, Show s, CanVersion e s) => (WorkflowEnvironment -> Maybe (StateKeys (Id e)(Id s))) -> User -> HistoryType -> s -> Day -> Text -> IO(Workflow)
+    runMutation accessor usr histoType s validfrom newContent = do
+        Log.info $ ">>>>>>>>>>>>>>> runMutation start" ++ show histoType 
+        workflow <- createUpdateWorkflow accessor usr histoType s validfrom
+        Log.info $ "runMutation wfmut1 = " ++ show workflow 
         (workflow,state,shadowed) :: (Workflow, s,[Version]) <- queryMutableState accessor workflow
         Log.info $ "runMutation MUTABLE/SHADOWED=" ++ show state ++ "/" ++ show shadowed
         let  newState = state |> set #content newContent
@@ -239,6 +250,8 @@ class (Show e, KnownSymbol (GetTableName e), e ~ GetModelByTableName (GetTableNa
             Right msg -> Log.info $ "ERROR:" ++ msg
     
         Log.info $ ">>>>>>>>>>>>>>> NACH COMMITMUTATATION " ++ show histoType
+        pure workflow
+
             
 queryEntityStateByValidFromMaxTxn :: HistoryType -> String -> Query 
 queryEntityStateByValidFromMaxTxn historyType fieldList =  do
@@ -271,37 +284,37 @@ selectStatesByValidFromMaxTxn historyType valid maxtxn options pagination = do
     pure (result,pagination {currentPage=(currentPage pagination) +1})
 
 instance CanVersion Contract ContractState where
-    getAccessor :: (WorkflowProgress -> Maybe (StateKeys (Id'"contracts")(Id' "contract_states")))
+    getAccessor :: (WorkflowEnvironment -> Maybe (StateKeys (Id'"contracts")(Id' "contract_states")))
     getAccessor = contract
-    setShadowed :: (WorkflowProgress ->  Maybe (StateKeys (Id'"contracts")(Id' "contract_states"))) -> WorkflowProgress -> (Integer,[Integer]) -> WorkflowProgress
-    setShadowed accessor wfp shadow = let new :: StateKeys (Id'"contracts")(Id' "contract_states") = fromJust $ accessor wfp 
-        in wfp {contract = Just $ new { shadowed = Just shadow }}
-    setWorkFlowState :: WorkflowProgress -> Maybe (StateKeys (Id'"contracts")(Id' "contract_states")) -> WorkflowProgress
-    setWorkFlowState wfp s = wfp  {contract = s} 
+    setShadowed :: (WorkflowEnvironment ->  Maybe (StateKeys (Id'"contracts")(Id' "contract_states"))) -> WorkflowEnvironment -> (Integer,[Integer]) -> WorkflowEnvironment
+    setShadowed accessor wfe shadow = let new :: StateKeys (Id'"contracts")(Id' "contract_states") = fromJust $ accessor wfe 
+        in wfe {contract = Just $ new { shadowed = Just shadow }}
+    setWorkFlowState :: WorkflowEnvironment -> Maybe (StateKeys (Id'"contracts")(Id' "contract_states")) -> WorkflowEnvironment
+    setWorkFlowState wfe s = wfe  {contract = s} 
 instance CanVersion Partner PartnerState where
-    getAccessor :: (WorkflowProgress ->Maybe (StateKeys (Id'"partners")(Id' "partner_states")))
+    getAccessor :: (WorkflowEnvironment ->Maybe (StateKeys (Id'"partners")(Id' "partner_states")))
     getAccessor = partner
-    setShadowed :: (WorkflowProgress ->  Maybe (StateKeys (Id'"partners")(Id' "partner_states"))) -> WorkflowProgress -> (Integer,[Integer]) -> WorkflowProgress
-    setShadowed accessor wfp shadow = let new :: StateKeys (Id'"partners")(Id' "partner_states") = fromJust $ accessor wfp 
-        in wfp {partner = Just $ new { shadowed = Just shadow }}
-    setWorkFlowState :: WorkflowProgress ->Maybe (StateKeys (Id'"partners")(Id' "partner_states")) -> WorkflowProgress
-    setWorkFlowState wfp s = wfp  {partner = s} 
+    setShadowed :: (WorkflowEnvironment ->  Maybe (StateKeys (Id'"partners")(Id' "partner_states"))) -> WorkflowEnvironment -> (Integer,[Integer]) -> WorkflowEnvironment
+    setShadowed accessor wfe shadow = let new :: StateKeys (Id'"partners")(Id' "partner_states") = fromJust $ accessor wfe 
+        in wfe {partner = Just $ new { shadowed = Just shadow }}
+    setWorkFlowState :: WorkflowEnvironment ->Maybe (StateKeys (Id'"partners")(Id' "partner_states")) -> WorkflowEnvironment
+    setWorkFlowState wfe s = wfe  {partner = s} 
 instance CanVersion Tariff TariffState where
-    getAccessor :: (WorkflowProgress ->Maybe (StateKeys (Id'"tariffs")(Id' "tariff_states")))
+    getAccessor :: (WorkflowEnvironment ->Maybe (StateKeys (Id'"tariffs")(Id' "tariff_states")))
     getAccessor = tariff
-    setShadowed :: (WorkflowProgress ->  Maybe (StateKeys (Id'"tariffs")(Id' "tariff_states"))) -> WorkflowProgress -> (Integer,[Integer]) -> WorkflowProgress
-    setShadowed accessor wfp shadow = let new :: StateKeys (Id'"tariffs")(Id' "tariff_states") = fromJust $ accessor wfp 
-        in wfp {tariff = Just $ new { shadowed = Just shadow }}
-    setWorkFlowState :: WorkflowProgress ->Maybe (StateKeys (Id'"tariffs")(Id' "tariff_states")) -> WorkflowProgress
-    setWorkFlowState wfp s = wfp  {tariff = s} 
+    setShadowed :: (WorkflowEnvironment ->  Maybe (StateKeys (Id'"tariffs")(Id' "tariff_states"))) -> WorkflowEnvironment -> (Integer,[Integer]) -> WorkflowEnvironment
+    setShadowed accessor wfe shadow = let new :: StateKeys (Id'"tariffs")(Id' "tariff_states") = fromJust $ accessor wfe 
+        in wfe {tariff = Just $ new { shadowed = Just shadow }}
+    setWorkFlowState :: WorkflowEnvironment ->Maybe (StateKeys (Id'"tariffs")(Id' "tariff_states")) -> WorkflowEnvironment
+    setWorkFlowState wfe s = wfe  {tariff = s} 
 
 instance CanVersion ContractPartner ContractPartnerState where
-    getAccessor :: (WorkflowProgress ->Maybe (StateKeys (Id'"contract_partners")(Id' "contract_partner_states")))
+    getAccessor :: (WorkflowEnvironment ->Maybe (StateKeys (Id'"contract_partners")(Id' "contract_partner_states")))
     getAccessor = contractPartner
 
 class (CanVersion sourceEntity sourceState, CanVersion targetEntity targetState, CanVersion relation relationState, HasField "refSource" relationState (Id sourceState), SetField "refSource" relationState (Id sourceState), HasField "refTarget" relationState (Id targetState), SetField "refTarget" relationState (Id targetState)) => CanVersionRelation sourceEntity sourceState targetEntity targetState relation relationState
     where
-    putRelState :: (?modelContext::ModelContext, ?context::context, LoggingProvider context) => (WorkflowProgress ->  Maybe (StateKeys (Id relation)(Id relationState))) -> (Id sourceState) -> (Id targetState) -> [PersistenceLog]-> IO([PersistenceLog])
+    putRelState :: (?modelContext::ModelContext, ?context::context, LoggingProvider context) => (WorkflowEnvironment ->  Maybe (StateKeys (Id relation)(Id relationState))) -> (Id sourceState) -> (Id targetState) -> [PersistenceLog]-> IO([PersistenceLog])
     putRelState accessor sid tid pLog = do
         src :: sourceState <- fetch sid
         tgt :: targetState <- fetch tid

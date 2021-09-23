@@ -4,11 +4,9 @@ module Application.Script.TestDB where
 {-# LANGUAGE DeriveAnyClass  #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-import Application.Helper.CanVersion
-import Application.Helper.WorkflowProgress
 import Application.Script.Prelude
 import IHP.Log as Log
-
+import Application.Helper.Controller
 
 run :: Script
 run = do

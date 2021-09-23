@@ -1,4 +1,4 @@
-module Application.Helper.WorkflowProgress where
+module Application.Helper.WorkflowEnvironment where
 {-# LANGUAGE DeriveGeneric  #-}
 {-# LANGUAGE DeriveAnyClass  #-}
 {-# LANGUAGE OverloadedStrings #-}
@@ -44,7 +44,7 @@ data StateKeys entityId stateId = StateKeys  {
     history :: Maybe UUID , version :: Maybe Integer, entity :: Maybe entityId, state :: Maybe stateId, shadowed :: Maybe (Integer,[Integer])} deriving (Show, Generic)
 stateKeysDefault = StateKeys Nothing Nothing Nothing Nothing Nothing 
 
-data WorkflowProgress = WorkflowProgress {
+data WorkflowEnvironment = WorkflowEnvironment {
     contract :: Maybe (StateKeys (Id' "contracts")(Id' "contract_states")), partner:: Maybe (StateKeys (Id' "partners")(Id' "partner_states")) , contractPartner:: Maybe (StateKeys (Id' "contract_partners")(Id' "contract_partner_states")) , tariff :: Maybe (StateKeys (Id' "tariffs")(Id' "tariff_states")),
     plog :: [PersistenceLog]
     } deriving (Show, Generic)
@@ -57,16 +57,16 @@ instance FromJSON (StateKeys  (Id' "contract_partners")(Id' "contract_partner_st
 instance ToJSON (StateKeys  (Id' "contract_partners")(Id' "contract_partner_states"))
 instance FromJSON (StateKeys  (Id' "tariffs")(Id' "tariff_states"))
 instance ToJSON (StateKeys  (Id' "tariffs")(Id' "tariff_states"))
-instance FromJSON WorkflowProgress
-instance ToJSON WorkflowProgress
+instance FromJSON WorkflowEnvironment
+instance ToJSON WorkflowEnvironment
 
-workflowProgressDefault = WorkflowProgress (Just stateKeysDefault) (Just stateKeysDefault) (Just stateKeysDefault)(Just stateKeysDefault) [] 
+workflowEnvironmentDefault = WorkflowEnvironment (Just stateKeysDefault) (Just stateKeysDefault) (Just stateKeysDefault)(Just stateKeysDefault) [] 
 
-getWfp :: Workflow -> Maybe WorkflowProgress
-getWfp workflow  =  decode $ encode $ get #progress workflow
+getWfe :: Workflow -> Maybe WorkflowEnvironment
+getWfe workflow  =  decode $ encode $ get #progress workflow
 
-setWfp :: Workflow -> WorkflowProgress -> Workflow
-setWfp wf wfp = wf |> set #progress ( fromJust $ decode $ encode wfp )
+setWfe :: Workflow -> WorkflowEnvironment -> Workflow
+setWfe wf wfe = wf |> set #progress ( fromJust $ decode $ encode wfe )
 
 data CRULog a = Inserted  { key::a }| Updated { old::a , new :: a } deriving (Generic, Show,Read)
 instance (ToJSON a) => ToJSON (CRULog a)
@@ -185,7 +185,7 @@ getPLog workflow = maybe  [] (plog) (decode $ encode $ get #progress workflow)
 
 setPLog :: Workflow -> [PersistenceLog] -> Workflow
 setPLog workflow  pl =  do
-    let wfp = case decode $ encode $ get #progress workflow of
-            Nothing -> workflowProgressDefault {plog=pl}
-            Just wfp -> wfp {plog=pl++plog wfp}
-    setWfp workflow wfp
+    let wfe = case decode $ encode $ get #progress workflow of
+            Nothing -> workflowEnvironmentDefault {plog=pl}
+            Just wfe -> wfe {plog=pl++plog wfe}
+    setWfe workflow wfe

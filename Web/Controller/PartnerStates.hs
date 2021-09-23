@@ -32,9 +32,9 @@ instance Controller PartnerStatesController where
     action SelectPartnerStateAction = do
         workflow <- getCurrentWorkflow
         let wfId = get #id workflow
-        let sidMB = case getWfp workflow of
-                Just wfp -> case get #historyType workflow of
-                    HistorytypeContract -> getStateIdMB contract wfp
+        let sidMB = case getWfe workflow of
+                Just wfe -> case get #historyType workflow of
+                    HistorytypeContract -> getStateIdMB contract wfe
                     _ -> Nothing
         case sidMB of
             Just sid -> Log.info $ "sid for selection " ++ show sid

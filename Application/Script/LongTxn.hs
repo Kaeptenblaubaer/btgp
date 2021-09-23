@@ -4,21 +4,19 @@ module Application.Script.LongTxn where
 {-# LANGUAGE DeriveAnyClass  #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-import Application.Helper.CanVersion
-import Application.Helper.WorkflowProgress
 import Application.Script.Prelude
 import IHP.Log as Log
 import Data.Maybe
 import IHP.Pagination.Types as PT
--- 
+import Application.Helper.Controller
 
 run :: Script
 run = do
     usr :: User <- query @User |> fetchOne 
     let validfrom0 :: Day = fromGregorian 2020 12 1
-    wfc ::Workflow <- newRecord |> set #refUser (get #id usr) |> set #historyType HistorytypeContract |> set #validfrom validfrom0 |>  set #workflowType WftypeNew |> createRecord
-    wfp ::Workflow <- newRecord |> set #refUser (get #id usr) |> set #historyType HistorytypePartner |> set #validfrom validfrom0 |> set #workflowType WftypeNew |> createRecord
-    wft ::Workflow <- newRecord |> set #refUser (get #id usr) |> set #historyType HistorytypeTariff |> set #validfrom validfrom0 |> set #workflowType WftypeNew |> createRecord  
+    wfc ::Workflow <- createCreationWorkflow contract usr HistorytypeContract validfrom0
+    wenv ::Workflow <- createCreationWorkflow partner usr HistorytypePartner validfrom0
+    wft ::Workflow <- createCreationWorkflow tariff usr HistorytypeTariff validfrom0
     let c0 :: ContractState = newRecord |> set #content "initial"
         p0 :: PartnerState = newRecord |> set #content "FIRST PARTNER"
         t0 :: TariffState = newRecord |> set #content "initial"
@@ -26,9 +24,9 @@ run = do
     Log.info $ show $ snd csk
     result <- fetch (get #id wfc) >>= (\s -> commitState contract s)
     Log.info $ show result
-    psk@(partnerState,partnerKeys)::(PartnerState, StateKeys (Id Partner)(Id PartnerState)) <- createHistory partner wfp p0
+    psk@(partnerState,partnerKeys)::(PartnerState, StateKeys (Id Partner)(Id PartnerState)) <- createHistory partner wenv p0
     Log.info $ show $ snd psk
-    result <- fetch (get #id wfp) >>= (\s -> commitState partner s)
+    result <- fetch (get #id wenv) >>= (\s -> commitState partner s)
     Log.info $ show result
     tsk::(TariffState, StateKeys (Id Tariff)(Id TariffState)) <- createHistory tariff wft t0
     Log.info $ show $ snd csk
@@ -36,12 +34,17 @@ run = do
     Log.info $ show result
     
     let validfrom1 :: Day = fromGregorian 2021 7 1
-    runMutation contract usr HistorytypeContract (fst csk) validfrom1 "1st mutatated ContractState"
+    workflowCM <- runMutation contract usr HistorytypeContract (fst csk) validfrom1 "1st mutatated ContractState"
     newContractPartner :: ContractPartner <- newRecord |> set #refHistory (Id (fromJust (history contractKeys))) |> createRecord
     newContractPartnerState :: ContractPartnerState <- newRecord |> set #refEntity (get #id newContractPartner) |> 
         set #refSource (get #id contractState) |> set #refTarget (get #id partnerState) |>
            set #refValidfromversion (get #refValidfromversion contractState) |> set #refValidthruversion Nothing |> createRecord
-    bubu <- putRelState contractPartner (get #id contractState) (get #id partnerState) []
+    cpsPLog <- putRelState contractPartner (get #id contractState) (get #id partnerState) (getPLog workflowCM)
+    result <- commitState contract (setPLog workflowCM cpsPLog)
+    case result of
+        Left msg -> Log.info $ "SUCCESS:"++ msg
+        Right msg -> Log.info $ "ERROR:" ++ msg
+    Log.info $ ">>>>>>>>>>>>>>> NACH COMMITMUTATATION " ++ show HistorytypeContract 
 --    runMutation partner usr HistorytypePartner (fst psk) validfrom1  "mutatated PartnerState"
 --    runMutation tariff usr HistorytypeTariff (fst tsk)  validfrom1  "mutatated TariffState"
 --

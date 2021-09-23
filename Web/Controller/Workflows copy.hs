@@ -63,10 +63,10 @@ instance Controller WorkflowsController where
         let workflowId = get #id workflow
         Log.info $ "nextaction Workflow" ++ show workflowId
         Log.info $ ("NextWF wf="++ show workflow)
-        case getWfe workflow of
-            Just wfe ->case get #workflowType workflow of
+        case getWfEnv workflow of
+            Just wenv ->case get #workflowType workflow of
                 WftypeNew -> case get #historyType workflow of
-                    HistorytypeContract -> case getStateIdMB contract wfe of
+                    HistorytypeContract -> case getStateIdMB contract wenv of
                         Nothing -> redirectTo NewContractStateAction 
                         Just sid -> do
                             let cmd = paramText "Workflow"
@@ -87,10 +87,10 @@ instance Controller WorkflowsController where
                                 unknown -> do
                                     setErrorMessage $ unknown ++ " is notknown command."
                                     redirectTo $ ShowWorkflowAction workflowId
-                --     HistorytypePartner -> case getStateIdMB partner wfe of
+                --     HistorytypePartner -> case getStateIdMB partner wenv of
                 --         Nothing -> redirectTo NewPartnerAction 
                 --         Just sid -> redirectTo $ EditPartnerAction sid
-                --     HistorytypeTariff -> case getStateIdMB tariff wfe of
+                --     HistorytypeTariff -> case getStateIdMB tariff wenv of
                 --         Nothing -> redirectTo NewTariffAction 
                 --         Just sid -> redirectTo $ EditTariffAction sid
                 -- WftypeUpdate -> redirectUpdateState workflow
