@@ -28,7 +28,7 @@ run = do
     Log.info $ show $ snd psk
     result <- fetch (get #id wenv) >>= (\s -> commitState partner s)
     Log.info $ show result
-    tsk::(TariffState, StateKeys (Id Tariff)(Id TariffState)) <- createHistory tariff wft t0
+    tsk@(tariffState,tariffKeys)::(TariffState, StateKeys (Id Tariff)(Id TariffState)) <- createHistory tariff wft t0
     Log.info $ show $ snd csk
     result <- fetch (get #id wft) >>= (\s -> commitState tariff s)
     Log.info $ show result
@@ -40,7 +40,17 @@ run = do
         set #refSource (get #id contractState) |> set #refTarget (get #id partnerState) |>
            set #refValidfromversion (get #refValidfromversion contractState) |> set #refValidthruversion Nothing |> createRecord
     cpsPLog <- putRelState contractPartner (get #id contractState) (get #id partnerState) (getPLog workflowCM)
-    result <- commitState contract (setPLog workflowCM cpsPLog)
+    newContractTariff :: ContractTariff <- newRecord |> set #refHistory (Id (fromJust (history contractKeys))) |> createRecord
+    newContractTariffState :: ContractTariffState <- newRecord |> set #refEntity (get #id newContractTariff) |> 
+        set #refSource (get #id contractState) |> set #refTarget (get #id tariffState) |>
+           set #refValidfromversion (get #refValidfromversion contractState) |> set #refValidthruversion Nothing |> createRecord
+    ctsPLog <- putRelState contractTariff (get #id contractState) (get #id tariffState) (getPLog workflowCM)
+    newTariffPartner :: TariffPartner <- newRecord |> set #refHistory (Id (fromJust (history tariffKeys))) |> createRecord
+    newTariffPaqrtnerState :: TariffPartnerState <- newRecord |> set #refEntity (get #id newTariffPartner) |> 
+        set #refSource (get #id tariffState) |> set #refTarget (get #id partnerState) |>
+           set #refValidfromversion (get #refValidfromversion contractState) |> set #refValidthruversion Nothing |> createRecord
+    tpsPLog <- putRelState contractTariff (get #id contractState) (get #id tariffState) (getPLog workflowCM)
+    result <- commitState contract (setPLog workflowCM tpsPLog)
     case result of
         Left msg -> Log.info $ "SUCCESS:"++ msg
         Right msg -> Log.info $ "ERROR:" ++ msg

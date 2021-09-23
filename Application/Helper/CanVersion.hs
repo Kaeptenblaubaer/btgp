@@ -136,7 +136,7 @@ class (Show e, KnownSymbol (GetTableName e), e ~ GetModelByTableName (GetTableNa
             cruV :: PersistenceLog  = mkPersistenceLogState $ mkInsertLog $ get #id version
             pl :: [PersistenceLog] = [cruE, cruS, cruW, cruH, cruV]
             sk :: StateKeys (Id e)(Id s) = stateKeysDefault {history = Just historyUUID, version = Just versionId, entity = Just entityId, state = Just stateId}
-            wfe = setWorkFlowState (WorkflowEnvironment Nothing Nothing Nothing Nothing []) $ Just sk 
+            wfe = setWorkFlowState workflowEnvironmentDefault $ Just sk 
             progress = toJSON wfe {plog = pl}
         uptodate ::Workflow <- workflow |> set #progress progress |> updateRecord
         Log.info ("hier ist Workflow mit JSON " ++ show (get #progress uptodate))
@@ -312,6 +312,14 @@ instance CanVersion ContractPartner ContractPartnerState where
     getAccessor :: (WorkflowEnvironment ->Maybe (StateKeys (Id'"contract_partners")(Id' "contract_partner_states")))
     getAccessor = contractPartner
 
+instance CanVersion ContractTariff ContractTariffState where
+    getAccessor :: (WorkflowEnvironment ->Maybe (StateKeys (Id'"contract_tariffs")(Id' "contract_tariff_states")))
+    getAccessor = contractTariff
+
+instance CanVersion TariffPartner TariffPartnerState where
+    getAccessor :: (WorkflowEnvironment ->Maybe (StateKeys (Id'"tariff_partners")(Id' "tariff_partner_states")))
+    getAccessor = tariffPartner
+
 class (CanVersion sourceEntity sourceState, CanVersion targetEntity targetState, CanVersion relation relationState, HasField "refSource" relationState (Id sourceState), SetField "refSource" relationState (Id sourceState), HasField "refTarget" relationState (Id targetState), SetField "refTarget" relationState (Id targetState)) => CanVersionRelation sourceEntity sourceState targetEntity targetState relation relationState
     where
     putRelState :: (?modelContext::ModelContext, ?context::context, LoggingProvider context) => (WorkflowEnvironment ->  Maybe (StateKeys (Id relation)(Id relationState))) -> (Id sourceState) -> (Id targetState) -> [PersistenceLog]-> IO([PersistenceLog])
@@ -328,3 +336,5 @@ class (CanVersion sourceEntity sourceState, CanVersion targetEntity targetState,
         pure cpsLog
 
 instance CanVersionRelation Contract ContractState Partner PartnerState ContractPartner ContractPartnerState
+instance CanVersionRelation Contract ContractState Tariff TariffState ContractTariff ContractTariffState
+instance CanVersionRelation Tariff TariffState Partner PartnerState TariffPartner TariffPartnerState
