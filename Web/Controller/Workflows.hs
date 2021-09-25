@@ -10,7 +10,7 @@ import Data.Maybe
 
 instance Controller WorkflowsController where
     action WorkflowsAction = do
-        workflows <- query @Workflow |> fetch
+        workflows <- query @Workflow |> orderBy #createdat|> fetch
         render IndexView { .. }
 
     action NewWorkflowAction = do
