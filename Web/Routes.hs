@@ -23,3 +23,9 @@ instance AutoRoute PartnerStatesController where
 
 instance AutoRoute HistoriesController
 
+
+instance AutoRoute TariffStatesController
+
+
+instance AutoRoute AdressStatesController
+

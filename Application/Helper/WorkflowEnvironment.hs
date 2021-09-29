@@ -46,18 +46,22 @@ stateKeysDefault = StateKeys Nothing Nothing Nothing Nothing Nothing
 
 data WorkflowEnvironment = WorkflowEnvironment {
     contract :: Maybe (StateKeys (Id' "contracts")(Id' "contract_states")),
-        partner:: Maybe (StateKeys (Id' "partners")(Id' "partner_states")) ,
-        contractPartner:: Maybe (StateKeys (Id' "contract_partners")(Id' "contract_partner_states")) ,
-        contractTariff:: Maybe (StateKeys (Id' "contract_tariffs")(Id' "contract_tariff_states")) ,
-        tariff :: Maybe (StateKeys (Id' "tariffs")(Id' "tariff_states")),
-        tariffPartner:: Maybe (StateKeys (Id' "tariff_partners")(Id' "tariff_partner_states")) , 
-        plog :: [PersistenceLog]
+    partner:: Maybe (StateKeys (Id' "partners")(Id' "partner_states")) , 
+    tariff :: Maybe (StateKeys (Id' "tariffs")(Id' "tariff_states")),
+    adress :: Maybe (StateKeys (Id' "adresses")(Id' "adress_states")),
+    contractPartner:: Maybe (StateKeys (Id' "contract_partners")(Id' "contract_partner_states")) ,
+    contractTariff:: Maybe (StateKeys (Id' "contract_tariffs")(Id' "contract_tariff_states")) ,
+    tariffPartner:: Maybe (StateKeys (Id' "tariff_partners")(Id' "tariff_partner_states")) , 
+    partnerAdress:: Maybe (StateKeys (Id' "partner_adresses")(Id' "partner_adress_states")) , 
+    plog :: [PersistenceLog]
     } deriving (Show, Generic)
 
 instance FromJSON (StateKeys  (Id' "contracts")(Id' "contract_states"))
 instance ToJSON (StateKeys  (Id' "contracts")(Id' "contract_states"))
 instance FromJSON (StateKeys  (Id' "partners")(Id' "partner_states"))
 instance ToJSON (StateKeys  (Id' "partners")(Id' "partner_states"))
+instance FromJSON (StateKeys  (Id' "adresses")(Id' "adress_states"))
+instance ToJSON (StateKeys  (Id' "adresses")(Id' "adress_states"))
 instance FromJSON (StateKeys  (Id' "contract_partners")(Id' "contract_partner_states"))
 instance ToJSON (StateKeys  (Id' "contract_partners")(Id' "contract_partner_states"))
 instance FromJSON (StateKeys  (Id' "contract_tariffs")(Id' "contract_tariff_states"))
@@ -66,10 +70,13 @@ instance FromJSON (StateKeys  (Id' "tariffs")(Id' "tariff_states"))
 instance ToJSON (StateKeys  (Id' "tariffs")(Id' "tariff_states"))
 instance FromJSON (StateKeys  (Id' "tariff_partners")(Id' "tariff_partner_states"))
 instance ToJSON (StateKeys  (Id' "tariff_partners")(Id' "tariff_partner_states"))
+instance FromJSON (StateKeys  (Id' "partner_adresses")(Id' "partner_adress_states"))
+instance ToJSON (StateKeys   (Id' "partner_adresses")(Id' "partner_adress_states"))
 instance FromJSON WorkflowEnvironment
 instance ToJSON WorkflowEnvironment
 
-workflowEnvironmentDefault = WorkflowEnvironment (Just stateKeysDefault) (Just stateKeysDefault) (Just stateKeysDefault)(Just stateKeysDefault) (Just stateKeysDefault) (Just stateKeysDefault)  [] 
+workflowEnvironmentDefault = WorkflowEnvironment (Just stateKeysDefault) (Just stateKeysDefault) (Just stateKeysDefault)
+    (Just stateKeysDefault) (Just stateKeysDefault) (Just stateKeysDefault) (Just stateKeysDefault) (Just stateKeysDefault) [] 
 
 getWfe :: Workflow -> Maybe WorkflowEnvironment
 getWfe workflow  =  decode $ encode $ get #progress workflow
@@ -86,7 +93,9 @@ data PersistenceLog =
     PartnerPL (CRULog (Id Partner))| PartnerStatePL (CRULog (Id PartnerState))| ContractPartnerPL (CRULog (Id ContractPartner)) | ContractPartnerStatePL (CRULog (Id ContractPartnerState)) |
     ContractTariffPL (CRULog (Id ContractTariff)) | ContractTariffStatePL (CRULog (Id ContractTariffState)) |
     TariffPL (CRULog (Id Tariff)) | TariffStatePL (CRULog (Id TariffState)) |
-    TariffPartnerPL (CRULog (Id TariffPartner)) | TariffPartnerStatePL (CRULog (Id TariffPartnerState)) 
+    TariffPartnerPL (CRULog (Id TariffPartner)) | TariffPartnerStatePL (CRULog (Id TariffPartnerState)) | 
+    AdressPL (CRULog (Id Adress)) | AdressStatePL (CRULog (Id AdressState)) |
+    PartnerAdressPL (CRULog (Id PartnerAdress)) | PartnerAdressStatePL (CRULog (Id PartnerAdressState)) 
     deriving (Generic, Show)
 
 instance ToJSON PersistenceLog
@@ -117,6 +126,11 @@ instance ToJSON (Id' "contract_states") where
 instance FromJSON (Id' "contract_states") where
     parseJSON = withObject "contractStateId" $ \o ->
         Id <$> o .: "contractStateId"
+instance ToJSON (Id' "adresses") where
+    toJSON (Id key) = object ["adressId" .= key]
+instance FromJSON (Id' "adresses") where
+    parseJSON = withObject "adressId" $ \o ->
+        Id <$> o .: "adressId"
 instance ToJSON (Id' "partners") where
     toJSON (Id key) = object ["partnerId" .= key]
 instance FromJSON (Id' "partners") where
@@ -127,6 +141,11 @@ instance ToJSON (Id' "partner_states") where
 instance FromJSON (Id' "partner_states") where
     parseJSON = withObject "partnerStateId" $ \o ->
         Id <$> o .: "partnerStateId"
+instance ToJSON (Id' "adress_states") where
+    toJSON (Id key) = object ["adressStateId" .= key]
+instance FromJSON (Id' "adress_states") where
+    parseJSON = withObject "adressStateId" $ \o ->
+        Id <$> o .: "adressStateId"
 instance ToJSON (Id' "tariffs") where
     toJSON (Id key) = object ["tariffId" .= key]
 instance FromJSON (Id' "tariffs") where
@@ -170,6 +189,17 @@ instance ToJSON (Id' "tariff_partner_states") where
 instance FromJSON (Id' "tariff_partner_states") where
     parseJSON = withObject "tariffPartnerStateId" $ \o ->
         Id <$> o .: "tariffPartnerStateId"
+
+instance ToJSON (Id' "partner_adresses") where
+    toJSON (Id key) = object ["partnerAdressId" .= key]
+instance FromJSON (Id' "partner_adresses") where
+    parseJSON = withObject "partnerAdressId" $ \o ->
+        Id <$> o .: "partnerAdressId"
+instance ToJSON (Id' "partner_adress_states") where
+    toJSON (Id key) = object ["partnerAdressStateId" .= key]
+instance FromJSON (Id' "partner_adress_states") where
+    parseJSON = withObject "partnerAdressStateId" $ \o ->
+        Id <$> o .: "partnerAdressStateId"
 
 class (KnownSymbol (GetTableName rec), rec ~ GetModelByTableName (GetTableName rec), Record rec, FilterPrimaryKey (GetTableName rec),CanCreate rec,Fetchable (QueryBuilder (GetTableName rec))  rec, FromRow rec,
     HasField "id" rec (Id rec), Show rec, Show (PrimaryKey (GetTableName rec)) , ToJSON (PrimaryKey (GetTableName rec))) => HasTxnLog rec 
@@ -218,6 +248,12 @@ instance HasTxnLog Tariff where
 instance HasTxnLog TariffState where 
     mkPersistenceLogState :: CRULog (Id TariffState) -> PersistenceLog
     mkPersistenceLogState cru = TariffStatePL cru
+instance HasTxnLog Adress where 
+    mkPersistenceLogState :: CRULog (Id Adress) -> PersistenceLog
+    mkPersistenceLogState cru = AdressPL cru
+instance HasTxnLog AdressState where 
+    mkPersistenceLogState :: CRULog (Id AdressState) -> PersistenceLog
+    mkPersistenceLogState cru = AdressStatePL cru
 instance HasTxnLog ContractPartner where 
     mkPersistenceLogState :: CRULog (Id ContractPartner) -> PersistenceLog
     mkPersistenceLogState cru = ContractPartnerPL cru
@@ -236,6 +272,12 @@ instance HasTxnLog TariffPartner where
 instance HasTxnLog TariffPartnerState where 
     mkPersistenceLogState :: CRULog (Id TariffPartnerState) -> PersistenceLog
     mkPersistenceLogState cru = TariffPartnerStatePL cru
+instance HasTxnLog PartnerAdress where 
+    mkPersistenceLogState :: CRULog (Id PartnerAdress) -> PersistenceLog
+    mkPersistenceLogState cru = PartnerAdressPL cru
+instance HasTxnLog PartnerAdressState where 
+    mkPersistenceLogState :: CRULog (Id PartnerAdressState) -> PersistenceLog
+    mkPersistenceLogState cru = PartnerAdressStatePL cru
 
 getPLog :: Workflow -> [PersistenceLog] 
 getPLog workflow = maybe  [] (plog) (decode $ encode $ get #progress workflow)

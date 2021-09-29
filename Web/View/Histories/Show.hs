@@ -48,7 +48,7 @@ renderMutableVersion ::Version -> Html
 renderMutableVersion version =  [hsx| <div><table>
             <tr><th>id</th><th>valid from</th><th>show</th><th>command</th></tr>
             <tr>
-            <td  style="width:1%">{get #id version}</td><td style="width:2%">{get #validfrom version}</td><td style="width:3%">Show state</td><td style="width:18%"><a href={pathTo(NewWorkflowAction) <> "?historyId=" ++ (show (get #refHistory version))}>Start Mutation Workflow</a></td>
+            <td  style="width:1%">{get #id version}</td><td style="width:2%">{get #validfrom version}</td><td style="width:3%"><a href={NextWorkflowAction}>Show stateM</a></td><td style="width:18%"><a href={pathTo(NewWorkflowAction) <> "?historyId=" ++ (show (get #refHistory version))}>Start Mutation Workflow</a></td>
             </tr></table></div>
           |] 
 
@@ -56,7 +56,7 @@ renderImmutableVersion ::Version -> Html
 renderImmutableVersion version =  [hsx| <div><table>
             <tr><th>id</th><th>valid from</th><th>show</th></tr>
             <tr>
-            <td  style="width:1%">{get #id version}</td><td style="width:2%">{get #validfrom version}</td><td style="width:3%">Show state</td><td style="width:18%"/>
+            <td  style="width:1%">{get #id version}</td><td style="width:2%">{get #validfrom version}</td><td style="width:3%"><a href={HistoriesAction}>Show stateI</a></td><td style="width:18%"/>
             </tr></table></div>
           |]  
 

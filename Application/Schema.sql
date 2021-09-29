@@ -16,7 +16,7 @@ CREATE TABLE userroles (
     ref_user UUID NOT NULL,
     ref_role UUID NOT NULL
 );
-CREATE TYPE history_type AS ENUM ('historytype_tariff', 'historytype_contract', 'historytype_partner');
+CREATE TYPE history_type AS ENUM ('historytype_tariff', 'historytype_contract', 'historytype_partner', 'historytype_adress');
 CREATE TYPE workflow_type AS ENUM ('wftype_new', 'wftype_update');
 CREATE TABLE workflows (
     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY NOT NULL,

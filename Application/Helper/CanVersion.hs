@@ -8,6 +8,7 @@ module Application.Helper.CanVersion where
 import GHC.Exts
 import GHC.Records
 import GHC.Generics
+import Data.Functor
 import Data.Maybe
 import Generated.Types
 import Application.Script.Prelude
@@ -27,7 +28,7 @@ import Text.Printf (printf)
 import IHP.Pagination.Types as PT
 
 today :: IO Day -- :: (year,month,day)
-today = getCurrentTime >>= return . utctDay
+today = getCurrentTime Data.Functor.<&> utctDay
 
 -- e denotes a temporal component and s its history of change
 class (Show e, KnownSymbol (GetTableName e), e ~ GetModelByTableName (GetTableName e), PrimaryKey (GetTableName e) ~ Integer, Record e,
@@ -101,6 +102,8 @@ class (Show e, KnownSymbol (GetTableName e), e ~ GetModelByTableName (GetTableNa
                                         Just (shadow,shadowed) -> do
                                             updated :: [Version]<- sqlQuery "update versions v set ref_shadowedby = ? where id in ? returning * " (v, In shadowed)
                                             forEach updated (\v -> Log.info $ "updated" ++ show v)
+                                    -- workflow <-workflow |> updateRecord
+                                    -- Log.info $ "Workflow updated in COMMITSTATE " ++ show workflow
                                     commitTransaction
                                     pure (Left "commit successful")
                                     -- redirectTo $ ShowWorkflowAction workflowId
@@ -215,12 +218,12 @@ class (Show e, KnownSymbol (GetTableName e), e ~ GetModelByTableName (GetTableNa
         Log.info ("queryMutableState shadow/shadowed=" ++ show version ++ " / " ++ show shadowed)
         pure (workflow, mstate,shadowed)
 
-    createCreationWorkflow :: (?modelContext::ModelContext, ?context::context, LoggingProvider context, Show s, CanVersion e s) => (WorkflowEnvironment -> Maybe (StateKeys (Id e)(Id s))) -> User -> HistoryType -> Day -> IO(Workflow)
+    createCreationWorkflow :: (?modelContext::ModelContext, ?context::context, LoggingProvider context, Show s, CanVersion e s) => (WorkflowEnvironment -> Maybe (StateKeys (Id e)(Id s))) -> User -> HistoryType -> Day -> IO Workflow
     createCreationWorkflow accessor usr histoType validfrom = do
         wf ::Workflow <- newRecord |> set #refUser (get #id usr) |> set #historyType histoType |> set #validfrom validfrom |>  set #workflowType WftypeNew |> createRecord
         pure wf
         
-    createUpdateWorkflow :: (?modelContext::ModelContext, ?context::context, LoggingProvider context, Show s, CanVersion e s) => (WorkflowEnvironment -> Maybe (StateKeys (Id e)(Id s))) -> User -> HistoryType -> s -> Day -> IO(Workflow)
+    createUpdateWorkflow :: (?modelContext::ModelContext, ?context::context, LoggingProvider context, Show s, CanVersion e s) => (WorkflowEnvironment -> Maybe (StateKeys (Id e)(Id s))) -> User -> HistoryType -> s -> Day -> IO Workflow
     createUpdateWorkflow accessor usr histoType s validfrom = do
         let eId :: Id e = get #refEntity s
         Log.info $ "runMutation entity =" ++ show eId
@@ -233,7 +236,7 @@ class (Show e, KnownSymbol (GetTableName e), e ~ GetModelByTableName (GetTableNa
         Log.info $ "runMutation wfmut1 = " ++ show workflow
         pure workflow
 
-    runMutation :: (?modelContext::ModelContext, ?context::context, LoggingProvider context, Show s, CanVersion e s) => (WorkflowEnvironment -> Maybe (StateKeys (Id e)(Id s))) -> User -> HistoryType -> s -> Day -> Text -> IO(Workflow)
+    runMutation :: (?modelContext::ModelContext, ?context::context, LoggingProvider context, Show s, CanVersion e s) => (WorkflowEnvironment -> Maybe (StateKeys (Id e)(Id s))) -> User -> HistoryType -> s -> Day -> Text -> IO Workflow
     runMutation accessor usr histoType s validfrom newContent = do
         Log.info $ ">>>>>>>>>>>>>>> runMutation start" ++ show histoType 
         workflow <- createUpdateWorkflow accessor usr histoType s validfrom
@@ -280,8 +283,8 @@ countStatesByValidFromMaxTxn historyType valid maxtxn= do
 selectStatesByValidFromMaxTxn :: (?modelContext :: ModelContext,?context::context, LoggingProvider context, CanVersion relation relationState) => HistoryType -> Day -> UTCTime -> PT.Options -> PT.Pagination -> IO ([relationState],Pagination)
 selectStatesByValidFromMaxTxn historyType valid maxtxn options pagination = do            
     Log.info $ "Pagination "  ++ show pagination     
-    result :: [relationState] <- sqlQuery (queryEntityStateByValidFromMaxTxn historyType "es.*") (historyType,valid, maxtxn, pageSize pagination, ((currentPage pagination) -1) * pageSize pagination)
-    pure (result,pagination {currentPage=(currentPage pagination) +1})
+    result :: [relationState] <- sqlQuery (queryEntityStateByValidFromMaxTxn historyType "es.*") (historyType,valid, maxtxn, pageSize pagination, (currentPage pagination -1) * pageSize pagination)
+    pure (result,pagination {currentPage= currentPage pagination +1})
 
 instance CanVersion Contract ContractState where
     getAccessor :: (WorkflowEnvironment -> Maybe (StateKeys (Id'"contracts")(Id' "contract_states")))
@@ -307,6 +310,14 @@ instance CanVersion Tariff TariffState where
         in wfe {tariff = Just $ new { shadowed = Just shadow }}
     setWorkFlowState :: WorkflowEnvironment ->Maybe (StateKeys (Id'"tariffs")(Id' "tariff_states")) -> WorkflowEnvironment
     setWorkFlowState wfe s = wfe  {tariff = s} 
+instance CanVersion Adress AdressState where
+    getAccessor :: (WorkflowEnvironment ->Maybe (StateKeys (Id'"adresses")(Id' "adress_states")))
+    getAccessor = adress
+    setShadowed :: (WorkflowEnvironment ->  Maybe (StateKeys (Id'"adresses")(Id' "adress_states"))) -> WorkflowEnvironment -> (Integer,[Integer]) -> WorkflowEnvironment
+    setShadowed accessor wfe shadow = let new :: StateKeys (Id'"adresses")(Id' "adress_states") = fromJust $ accessor wfe 
+        in wfe {adress = Just $ new { shadowed = Just shadow }}
+    setWorkFlowState :: WorkflowEnvironment ->Maybe (StateKeys (Id'"adresses")(Id' "adress_states")) -> WorkflowEnvironment
+    setWorkFlowState wfe s = wfe  {adress = s} 
 
 instance CanVersion ContractPartner ContractPartnerState where
     getAccessor :: (WorkflowEnvironment ->Maybe (StateKeys (Id'"contract_partners")(Id' "contract_partner_states")))
@@ -320,10 +331,14 @@ instance CanVersion TariffPartner TariffPartnerState where
     getAccessor :: (WorkflowEnvironment ->Maybe (StateKeys (Id'"tariff_partners")(Id' "tariff_partner_states")))
     getAccessor = tariffPartner
 
+instance CanVersion PartnerAdress PartnerAdressState where
+    getAccessor :: (WorkflowEnvironment ->Maybe (StateKeys (Id'"partner_adresses")(Id' "partner_adress_states")))
+    getAccessor = partnerAdress
+
 class (CanVersion sourceEntity sourceState, CanVersion targetEntity targetState, CanVersion relation relationState, HasField "refSource" relationState (Id sourceState), SetField "refSource" relationState (Id sourceState), HasField "refTarget" relationState (Id targetState), SetField "refTarget" relationState (Id targetState)) => CanVersionRelation sourceEntity sourceState targetEntity targetState relation relationState
     where
-    putRelState :: (?modelContext::ModelContext, ?context::context, LoggingProvider context) => (WorkflowEnvironment ->  Maybe (StateKeys (Id relation)(Id relationState))) -> (Id sourceState) -> (Id targetState) -> [PersistenceLog]-> IO([PersistenceLog])
-    putRelState accessor sid tid pLog = do
+    putRelState :: (?modelContext::ModelContext, ?context::context, LoggingProvider context) => (WorkflowEnvironment ->  Maybe (StateKeys (Id relation)(Id relationState))) -> Id sourceState -> Id targetState -> Workflow -> IO()
+    putRelState accessor sid tid workflow = do
         src :: sourceState <- fetch sid
         tgt :: targetState <- fetch tid
         srcEntity :: sourceEntity <- fetch (get #refEntity src) 
@@ -331,10 +346,11 @@ class (CanVersion sourceEntity sourceState, CanVersion targetEntity targetState,
         newRelationState :: relationState <- newRecord |> set #refEntity (get #id newRelation) |> 
             set #refSource sid |> set #refTarget tid |>
             set #refValidfromversion (get #refValidfromversion src) |> set #refValidthruversion Nothing |> createRecord
-        let cpsLog = ( mkPersistenceLogState $ mkInsertLog $ get #id newRelationState ) : pLog
-        -- setSuccessMessage "new ContractStatePartnerState"
-        pure cpsLog
+        let cpsLog = mkPersistenceLogState (mkInsertLog $ get #id newRelationState ) : getPLog workflow
+        workflow <- setPLog workflow cpsLog |> updateRecord
+        return ()
 
 instance CanVersionRelation Contract ContractState Partner PartnerState ContractPartner ContractPartnerState
 instance CanVersionRelation Contract ContractState Tariff TariffState ContractTariff ContractTariffState
 instance CanVersionRelation Tariff TariffState Partner PartnerState TariffPartner TariffPartnerState
+instance CanVersionRelation Partner PartnerState Adress AdressState PartnerAdress PartnerAdressState

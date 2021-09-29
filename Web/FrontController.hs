@@ -5,6 +5,8 @@ import Web.Controller.Prelude
 import Web.View.Layout (defaultLayout)
 
 -- Controller Imports
+import Web.Controller.AdressStates
+import Web.Controller.TariffStates
 import Web.Controller.Histories
 import Web.Controller.PartnerStates
 import Web.Controller.Workflows
@@ -15,6 +17,8 @@ instance FrontController WebApplication where
     controllers = 
         [ startPage WelcomeAction
         -- Generator Marker
+        , parseRoute @AdressStatesController
+        , parseRoute @TariffStatesController
         , parseRoute @HistoriesController
         , parseRoute @PartnerStatesController
         , parseRoute @WorkflowsController

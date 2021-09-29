@@ -61,3 +61,23 @@ data HistoriesController
     | UpdateHistoryAction { historyId :: !(Id History) }
     | DeleteHistoryAction { historyId :: !(Id History) }
     deriving (Eq, Show, Data)
+
+data TariffStatesController
+    = TariffStatesAction
+    | NewTariffStateAction
+    | ShowTariffStateAction { tariffStateId :: !(Id TariffState) }
+    | CreateTariffStateAction
+    | EditTariffStateAction { tariffStateId :: !(Id TariffState) }
+    | UpdateTariffStateAction { tariffStateId :: !(Id TariffState) }
+    | DeleteTariffStateAction { tariffStateId :: !(Id TariffState) }
+    deriving (Eq, Show, Data)
+
+data AdressStatesController
+    = AdressStatesAction
+    | NewAdressStateAction
+    | ShowAdressStateAction { adressStateId :: !(Id AdressState) }
+    | CreateAdressStateAction
+    | EditAdressStateAction { adressStateId :: !(Id AdressState) }
+    | UpdateAdressStateAction { adressStateId :: !(Id AdressState) }
+    | DeleteAdressStateAction { adressStateId :: !(Id AdressState) }
+    deriving (Eq, Show, Data)

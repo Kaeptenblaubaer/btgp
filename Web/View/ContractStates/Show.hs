@@ -2,7 +2,8 @@ module Web.View.ContractStates.Show where
 import Web.View.Prelude
 
 data ShowView = ShowView { contractState :: ContractState,
-    contractPartnerStates ::[ContractPartnerState] , partnerStates :: [PartnerState]}
+    contractPartnerStates ::[ContractPartnerState] , partnerStates :: [PartnerState],
+    contractTariffStates ::[ContractTariffState] , tariffStates :: [TariffState]}
 
 instance View ShowView where
     html ShowView { .. } = [hsx|
@@ -13,19 +14,27 @@ instance View ShowView where
             </ol>
         </nav>
         <h1>Show ContractState</h1>
-       {renderDetails contractState partnerStates}
+       {renderDetails contractState partnerStates tariffStates}
     |]
 
-renderDetails :: ContractState -> [PartnerState] -> Html
-renderDetails contractState partners = formFor contractState [hsx|
+renderDetails :: ContractState -> [PartnerState] ->  [TariffState] -> Html
+renderDetails contractState partners tariffs = formFor contractState [hsx|
     {get #content contractState}
     {forEach partners renderPartnerState}
+    {forEach tariffs renderTariffState}
 |]
 
 renderPartnerState :: PartnerState -> Html
 renderPartnerState partnerState = [hsx|
     <div>
        { get #content partnerState }
+    </div>
+|]
+
+renderTariffState :: TariffState -> Html
+renderTariffState tariffState = [hsx|
+    <div>
+       { get #content tariffState }
     </div>
 |]
 
