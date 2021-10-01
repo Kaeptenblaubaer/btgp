@@ -120,8 +120,6 @@ SELECT pg_catalog.setval('public.contract_partner_states_id_seq', 1, false);
 
 SELECT pg_catalog.setval('public.contract_partner_states_ref_entity_seq', 1, false);
 
-SELECT pg_catalog.setval('public.contract_partner_states_ref_source_seq', 1, false);
-
 SELECT pg_catalog.setval('public.contract_partner_states_ref_target_seq', 1, false);
 
 SELECT pg_catalog.setval('public.contract_partners_id_seq', 1, false);
@@ -134,8 +132,6 @@ SELECT pg_catalog.setval('public.contract_tariff_states_id_seq', 1, false);
 
 SELECT pg_catalog.setval('public.contract_tariff_states_ref_entity_seq', 1, false);
 
-SELECT pg_catalog.setval('public.contract_tariff_states_ref_source_seq', 1, false);
-
 SELECT pg_catalog.setval('public.contract_tariff_states_ref_target_seq', 1, false);
 
 SELECT pg_catalog.setval('public.contract_tariffs_id_seq', 1, false);
@@ -145,8 +141,6 @@ SELECT pg_catalog.setval('public.contracts_id_seq', 1, false);
 SELECT pg_catalog.setval('public.partner_adress_states_id_seq', 1, false);
 
 SELECT pg_catalog.setval('public.partner_adress_states_ref_entity_seq', 1, false);
-
-SELECT pg_catalog.setval('public.partner_adress_states_ref_source_seq', 1, false);
 
 SELECT pg_catalog.setval('public.partner_adress_states_ref_target_seq', 1, false);
 
@@ -161,8 +155,6 @@ SELECT pg_catalog.setval('public.partners_id_seq', 1, true);
 SELECT pg_catalog.setval('public.tariff_partner_states_id_seq', 1, false);
 
 SELECT pg_catalog.setval('public.tariff_partner_states_ref_entity_seq', 1, false);
-
-SELECT pg_catalog.setval('public.tariff_partner_states_ref_source_seq', 1, false);
 
 SELECT pg_catalog.setval('public.tariff_partner_states_ref_target_seq', 1, false);
 

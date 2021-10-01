@@ -50,14 +50,14 @@ run = do
     putRelState contractTariff (get #id contractState) (get #id tariffState) wfc
     result <- fetch (get #id wfc) >>= commitState contract
     Log.info $ show result
---
---    let validfrom1 :: Day = fromGregorian 2021 7 1
--- 
---    workflowCM <- runMutation contract usr HistorytypeContract (fst csk) validfrom1 "1st mutatated ContractState"
---    commitState contract workflowCM
---    case result of
---        Left msg -> Log.info $ "SUCCESS:"++ msg
---        Right msg -> Log.info $ "ERROR:" ++ msg
+
+    let validfrom1 :: Day = fromGregorian 2021 7 1
+ 
+    workflowCM <- runMutation contract usr HistorytypeContract (fst csk) validfrom1 "1st mutatated ContractState"
+    commitState contract workflowCM
+    case result of
+        Left msg -> Log.info $ "SUCCESS 1CM:"++ msg
+        Right msg -> Log.info $ "ERROR 1CM:" ++ msg
 --
 --    workflowPM <- runMutation partner usr HistorytypePartner (fst psk) validfrom1  "1st mutatated PartnerState"
 --    commitState partner workflowPM
@@ -72,13 +72,13 @@ run = do
 --        Right msg -> Log.info $ "ERROR:" ++ msg
 --
 --
---    let validfrom2 :: Day = fromGregorian 2021 5 1
--- 
---    workflowCM <- runMutation contract usr HistorytypeContract (fst csk) validfrom2 "2nd mutatated ContractState"
---    commitState contract workflowCM
---    case result of
---        Left msg -> Log.info $ "SUCCESS:"++ msg
---        Right msg -> Log.info $ "ERROR:" ++ msg
+    let validfrom2 :: Day = fromGregorian 2021 5 1
+ 
+    workflowCM <- runMutation contract usr HistorytypeContract (fst csk) validfrom2 "2nd mutatated ContractState"
+    commitState contract workflowCM
+    case result of
+        Left msg -> Log.info $ "SUCCESS 2CM:"++ msg
+        Right msg -> Log.info $ "ERROR 2CM :" ++ msg
 --
 --
 ----

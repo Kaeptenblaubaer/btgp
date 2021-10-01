@@ -243,8 +243,8 @@ class (Show e, KnownSymbol (GetTableName e), e ~ GetModelByTableName (GetTableNa
         Log.info $ "runMutation wfmut1 = " ++ show workflow 
         (workflow,state,shadowed) :: (Workflow, s,[Version]) <- queryMutableState accessor workflow
         Log.info $ "runMutation MUTABLE/SHADOWED=" ++ show state ++ "/" ++ show shadowed
-        let  newState = state |> set #content newContent
-        (workflow,newState) :: (Workflow,s) <- mutateHistory getAccessor workflow state
+        let  newState = state |> set #content newContent 
+        (workflow,newState) :: (Workflow,s) <- mutateHistory getAccessor workflow newState
         Log.info $ ">>>>>>>>>>>>>>> NACH MUTATE histotype " ++ show histoType ++ " progress" ++ show (get #progress workflow)
         Log.info $ "Workflow für commit:" ++ show  workflow
         result <- commitState accessor workflow 
@@ -335,7 +335,7 @@ instance CanVersion PartnerAdress PartnerAdressState where
     getAccessor :: (WorkflowEnvironment ->Maybe (StateKeys (Id'"partner_adresses")(Id' "partner_adress_states")))
     getAccessor = partnerAdress
 
-class (CanVersion sourceEntity sourceState, CanVersion targetEntity targetState, CanVersion relation relationState, HasField "refSource" relationState (Id sourceState), SetField "refSource" relationState (Id sourceState), HasField "refTarget" relationState (Id targetState), SetField "refTarget" relationState (Id targetState)) => CanVersionRelation sourceEntity sourceState targetEntity targetState relation relationState
+class (CanVersion sourceEntity sourceState, CanVersion targetEntity targetState, CanVersion relation relationState, HasField "refTarget" relationState (Id targetState), SetField "refTarget" relationState (Id targetState)) => CanVersionRelation sourceEntity sourceState targetEntity targetState relation relationState
     where
     putRelState :: (?modelContext::ModelContext, ?context::context, LoggingProvider context) => (WorkflowEnvironment ->  Maybe (StateKeys (Id relation)(Id relationState))) -> Id sourceState -> Id targetState -> Workflow -> IO()
     putRelState accessor sid tid workflow = do
@@ -343,8 +343,7 @@ class (CanVersion sourceEntity sourceState, CanVersion targetEntity targetState,
         tgt :: targetState <- fetch tid
         srcEntity :: sourceEntity <- fetch (get #refEntity src) 
         newRelation :: relation <- newRecord |> set #refHistory (get #refHistory srcEntity) |> createRecord
-        newRelationState :: relationState <- newRecord |> set #refEntity (get #id newRelation) |> 
-            set #refSource sid |> set #refTarget tid |>
+        newRelationState :: relationState <- newRecord |> set #refEntity (get #id newRelation) |> set #refTarget tid |>
             set #refValidfromversion (get #refValidfromversion src) |> set #refValidthruversion Nothing |> createRecord
         let cpsLog = mkPersistenceLogState (mkInsertLog $ get #id newRelationState ) : getPLog workflow
         workflow <- setPLog workflow cpsLog |> updateRecord

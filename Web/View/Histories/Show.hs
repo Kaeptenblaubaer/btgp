@@ -1,7 +1,7 @@
 module Web.View.Histories.Show where
 import Web.View.Prelude
 import Data.Tree
-data ShowView = ShowView { history :: History , versions :: [Version] }
+data ShowView = ShowView { history :: History , versions :: [Version], states :: [ContractState] }
 
 instance View ShowView where
     html ShowView { .. } = [hsx|
@@ -18,45 +18,48 @@ instance View ShowView where
         invalidation of timelines by retrospective mutatations </p>
         <p>Click on the arrow(s) to open or close the tree branches, that is: show or hide invalidated timelines</p>
         <ul id="history" >
-          { forEach (fst $ mkForest versions []) (renderTree 0)} 
+          { forEach (fst $ mkForest versions []) (renderTree states 0)} 
         </ul>
     |]
 
-renderTree :: Integer -> Tree Version -> Html
-renderTree lvl n  = case subForest n of
+renderTree :: [ContractState] -> Integer -> Tree Version -> Html
+renderTree states lvl n  = case subForest n of
        [] ->  [hsx| 
                     <li>
-                            {renderLabel lvl n}
+                            {renderLabel states lvl n}
                     </li>
                 |]
        _  ->  [hsx|  
-                    <li>{renderLabel lvl n} 
+                    <li>{renderLabel states lvl n} 
                         <span class="caret" ></span>
                         <ul class="nested">
-                          { forEach (subForest n) (renderTree (lvl+1))} 
+                          { forEach (subForest n) (renderTree states (lvl+1))} 
                         </ul>
                     </li>
                 |]
 
 
-renderLabel :: Integer -> Tree Version  -> Html
-renderLabel lvl n = case lvl of
-    0 -> renderMutableVersion ( rootLabel n)
-    _ -> renderImmutableVersion ( rootLabel n)
+renderLabel :: [ContractState] -> Integer -> Tree Version  -> Html
+renderLabel states lvl n = case lvl of
+    0 -> renderMutableVersion states ( rootLabel n)
+    _ -> renderImmutableVersion states ( rootLabel n)
 
-renderMutableVersion ::Version -> Html
-renderMutableVersion version =  [hsx| <div><table>
+renderMutableVersion :: [ContractState] -> Version -> Html
+renderMutableVersion states version =  [hsx| <div><table>
             <tr><th>id</th><th>valid from</th><th>show</th><th>command</th></tr>
             <tr>
-            <td  style="width:1%">{get #id version}</td><td style="width:2%">{get #validfrom version}</td><td style="width:3%"><a href={NextWorkflowAction}>Show stateM</a></td><td style="width:18%"><a href={pathTo(NewWorkflowAction) <> "?historyId=" ++ (show (get #refHistory version))}>Start Mutation Workflow</a></td>
+                <td  style="width:1%">{get #id version}</td><td style="width:2%">{get #validfrom version}</td>
+                <td style="width:3%"><a href={getStateId version states}>Show stateM</a></td>
+                <td style="width:18%"><a href={pathTo(NewWorkflowAction) <> "?historyId=" ++ (show (get #refHistory version))}>Start Mutation Workflow</a></td>
             </tr></table></div>
           |] 
 
-renderImmutableVersion ::Version -> Html
-renderImmutableVersion version =  [hsx| <div><table>
+renderImmutableVersion :: [ContractState] -> Version -> Html
+renderImmutableVersion states version =  [hsx| <div><table>
             <tr><th>id</th><th>valid from</th><th>show</th></tr>
             <tr>
-            <td  style="width:1%">{get #id version}</td><td style="width:2%">{get #validfrom version}</td><td style="width:3%"><a href={HistoriesAction}>Show stateI</a></td><td style="width:18%"/>
+                <td  style="width:1%">{get #id version}</td><td style="width:2%">{get #validfrom version}</td>
+                <td style="width:3%"><a href={getStateId version states}>Show stateI</a></td><td style="width:18%"/>
             </tr></table></div>
           |]  
 
@@ -83,3 +86,9 @@ mkForest  [] akku               = (akku,[])
 mkForest  (head:tail) akku      =
         let (tree,rest) = mkTree head tail 
         in mkForest rest (akku ++ [tree]) 
+
+
+getStateId v states = case filter (\s-> get #refValidfromversion s == get #id v) states of
+        [] -> ContractStatesAction
+        s : _ -> ShowContractStateAction (get #id s)
+

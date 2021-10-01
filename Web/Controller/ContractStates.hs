@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 module Web.Controller.ContractStates where
 
 import Web.Controller.Prelude
@@ -18,24 +19,44 @@ instance Controller ContractStatesController where
 
     action ShowContractStateAction { contractStateId } = do
         contractState <- fetch contractStateId
-        contractPartnerStates :: [ContractPartnerState] <- query @ContractPartnerState|> filterWhere(#refSource, get #id contractState) |> fetch
+        contractPartnerStates :: [ContractPartnerState] <- query @ContractPartnerState |>
+            filterWhereSql(#refValidfromversion, encodeUtf8 $ "<= " ++ show (get #refValidfromversion contractState) ) |>
+            queryOr
+                (filterWhereSql (#refValidthruversion, "is null"))
+                (filterWhereSql (#refValidthruversion, encodeUtf8 $ ">= " ++ show (get #refValidfromversion contractState))) |> fetch
         partnerStates <- query @PartnerState |> filterWhereIn (#id, map (\cps -> get #refTarget cps ) contractPartnerStates) |> fetch
-        contractTariffStates :: [ContractTariffState] <- query @ContractTariffState|> filterWhere(#refSource, get #id contractState) |> fetch
+        contractTariffStates :: [ContractTariffState] <- query @ContractTariffState|>
+            filterWhereSql(#refValidfromversion, encodeUtf8 $ "<= " ++ show (get #refValidfromversion contractState) ) |>
+            queryOr
+                (filterWhereSql (#refValidthruversion, "is null"))
+                (filterWhereSql (#refValidthruversion, encodeUtf8 $ ">= " ++ show (get #refValidfromversion contractState))) |> fetch
         tariffStates <-  query @TariffState |> filterWhereIn (#id, map (\cps -> get #refTarget cps ) contractTariffStates) |> fetch
         render ShowView { .. }
 
     action EditContractStateAction { contractStateId } = do
         contractState <- fetch contractStateId
-        contractPartnerStates :: [ContractPartnerState] <- query @ContractPartnerState|> filterWhere(#refSource, get #id contractState) |> fetch
+        contractPartnerStates :: [ContractPartnerState] <- query @ContractPartnerState |>
+            filterWhereSql(#refValidfromversion, encodeUtf8 $ "<= " ++ show (get #refValidfromversion contractState) ) |>
+            queryOr
+                (filterWhereSql (#refValidthruversion, "is null"))
+                (filterWhereSql (#refValidthruversion, encodeUtf8 $ ">= " ++ show (get #refValidfromversion contractState))) |> fetch
         partnerStates <- query @PartnerState |> filterWhereIn (#id, map (\cps -> get #refTarget cps ) contractPartnerStates) |> fetch
-        contractTariffStates :: [ContractTariffState] <- query @ContractTariffState|> filterWhere(#refSource, get #id contractState) |> fetch
+        contractTariffStates :: [ContractTariffState] <- query @ContractTariffState|>
+            filterWhereSql(#refValidfromversion, encodeUtf8 $ "<= " ++ show (get #refValidfromversion contractState) ) |>
+            queryOr
+                (filterWhereSql (#refValidthruversion, "is null"))
+                (filterWhereSql (#refValidthruversion, encodeUtf8 $ ">= " ++ show (get #refValidfromversion contractState))) |> fetch
         tariffStates <-  query @TariffState |> filterWhereIn (#id, map (\cps -> get #refTarget cps ) contractTariffStates) |> fetch
         render EditView { .. }
 
     action UpdateContractStateAction { contractStateId } = do
         contractState <- fetch contractStateId
-        contractPartnerStates :: [ContractPartnerState] <- query @ContractPartnerState|> filterWhere(#refSource, get #id contractState) |> fetch
-        partnerStates <-  query @PartnerState |> filterWhereIn (#id, map (\cps -> get #refTarget cps ) contractPartnerStates) |> fetch
+        contractPartnerStates :: [ContractPartnerState] <- query @ContractPartnerState |>
+            filterWhereSql(#refValidfromversion, encodeUtf8 $ "<= " ++ show (get #refValidfromversion contractState) ) |>
+            queryOr
+                (filterWhereSql (#refValidthruversion, "is null"))
+                (filterWhereSql (#refValidthruversion, encodeUtf8 $ ">= " ++ show (get #refValidfromversion contractState))) |> fetch
+        partnerStates <- query @PartnerState |> filterWhereIn (#id, map (\cps -> get #refTarget cps ) contractPartnerStates) |> fetch
         contractState
             |> buildContractState
             |> ifValid \case

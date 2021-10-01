@@ -18,7 +18,10 @@ instance Controller HistoriesController where
     action ShowHistoryAction { historyId } = do
         history <- fetch historyId
         versions :: [Version]<- sqlQuery "SELECT * FROM versions WHERE ref_history = ? order by createdat desc" (Only historyId)
+        let versionIds = map (get #id) versions
+        states <- query @ContractState |> filterWhereIn(#refValidfromversion,versionIds) |> fetch
         render ShowView { .. }
+
 
     action EditHistoryAction { historyId } = do
         history <- fetch historyId
