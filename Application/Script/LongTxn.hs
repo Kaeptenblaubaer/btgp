@@ -30,7 +30,9 @@ run = do
 
     psk@(partnerState,partnerKeys)::(PartnerState, StateKeys (Id Partner)(Id PartnerState)) <- createHistory partner wfp p0
     wfp <- fetch (get #id wfp)
-    putRelState partnerAdress (get #id partnerState) (get #id adressState) wfp
+    newRelationState :: PartnerAdressState <- putRelState (get #id partnerState) (get #id adressState) wfp
+    let pasLog = mkPersistenceLogState (mkInsertLog $ get #id newRelationState ) : getPLog wfp
+    workflow <- setPLog wfp pasLog |> updateRecord
     Log.info $ show $ snd psk
     result <- fetch (get #id wfp) >>= commitState partner
     Log.info $ show result
@@ -38,7 +40,9 @@ run = do
     tsk@(tariffState,tariffKeys)::(TariffState, StateKeys (Id Tariff)(Id TariffState)) <- createHistory tariff wft t0
     wft <- fetch (get #id wft)
     Log.info $ show $ snd tsk
-    putRelState tariffPartner (get #id tariffState) (get #id partnerState) wft
+    newRelationState :: TariffPartnerState <- putRelState (get #id tariffState) (get #id partnerState) wft
+    let tpsLog = mkPersistenceLogState (mkInsertLog $ get #id newRelationState ) : getPLog wft
+    workflow <- setPLog wft tpsLog |> updateRecord
     result <- fetch (get #id wft) >>= commitState tariff
     Log.info $ show result
     
@@ -46,8 +50,11 @@ run = do
     wfc <- fetch (get #id wfc)
     Log.info $ show $ snd csk
     Log.info $ show result
-    putRelState contractPartner (get #id contractState) (get #id partnerState) wfc
-    putRelState contractTariff (get #id contractState) (get #id tariffState) wfc
+    newRelationState :: ContractPartnerState <- putRelState (get #id contractState) (get #id partnerState) wfc
+    let cpsLog = mkPersistenceLogState (mkInsertLog $ get #id newRelationState ) : getPLog wfc
+    newRelationState :: ContractTariffState <- putRelState (get #id contractState) (get #id tariffState) wfc
+    let ctsLog = mkPersistenceLogState (mkInsertLog $ get #id newRelationState ) : cpsLog
+    workflow <- setPLog wfc ctsLog |> updateRecord
     result <- fetch (get #id wfc) >>= commitState contract
     Log.info $ show result
 

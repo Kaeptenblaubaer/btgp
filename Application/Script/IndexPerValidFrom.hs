@@ -5,7 +5,8 @@ module Application.Script.IndexPerValidFrom where
 {-# LANGUAGE OverloadedStrings #-}
 
 import Application.Script.Prelude
-import Application.Helper.CanVersion
+import Application.Model.CanVersion
+import Application.Model.Persistence.Partner
 import IHP.Log as Log
 import IHP.Pagination.Types as PT
 -- 

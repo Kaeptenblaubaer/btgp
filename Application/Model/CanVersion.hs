@@ -1,4 +1,4 @@
-module Application.Helper.CanVersion where
+module Application.Model.CanVersion where
 {-# LANGUAGE DeriveGeneric  #-}
 {-# LANGUAGE DeriveAnyClass  #-}
 {-# LANGUAGE OverloadedStrings #-}
@@ -22,7 +22,18 @@ import Database.PostgreSQL.Simple.FromField
 import Data.Text.Encoding ( encodeUtf8 )
 import Data.Text.Read as T (decimal)
 -- import Application.Helper.VersionTree
-import Application.Helper.WorkflowEnvironment
+import Application.Model.WorkflowEnvironment as WorkflowEnvironment
+    ( HasTxnLog(mkInsertLog, mkPersistenceLogState),
+      PersistenceLog,
+      WorkflowEnvironment(plog),
+      StateKeys(history, version, entity, state, shadowed),
+      fromId,
+      stateKeysDefault,
+      workflowEnvironmentDefault,
+      getWfe,
+      setWfe,
+      getPLog,
+      setPLog )
 import Text.Printf (printf)
 
 import IHP.Pagination.Types as PT
@@ -182,10 +193,7 @@ class (Show e, KnownSymbol (GetTableName e), e ~ GetModelByTableName (GetTableNa
         let wfprogress :: WorkflowEnvironment = fromJust $ getWfe workflow
             validfrom = tshow $ get #validfrom workflow
         Log.info $ "queryVersionMutableValidfrom workflowProgress:" ++ show wfprogress
-        let historyId =  fromJust $ case get #historyType workflow of
-                HistorytypeContract -> getStatehistoryIdMB contract wfprogress
-                HistorytypePartner -> getStatehistoryIdMB partner wfprogress
-                HistorytypeTariff -> getStatehistoryIdMB tariff wfprogress
+        let historyId =  fromJust $ getStatehistoryIdMB accessor wfprogress
         Log.info $ "queryVersionMutableValidfrom HistoryId:" ++ show historyId ++ "validfrom" ++ show validfrom
         let q :: Query = "SELECT * FROM versions v WHERE v.id in (SELECT max(id) FROM versions where ref_history = ? and validfrom <= ?)"
             p :: (Id History, Text) = (Id historyId, validfrom)
@@ -285,71 +293,17 @@ selectStatesByValidFromMaxTxn historyType valid maxtxn options pagination = do
     Log.info $ "Pagination "  ++ show pagination     
     result :: [relationState] <- sqlQuery (queryEntityStateByValidFromMaxTxn historyType "es.*") (historyType,valid, maxtxn, pageSize pagination, (currentPage pagination -1) * pageSize pagination)
     pure (result,pagination {currentPage= currentPage pagination +1})
-
-instance CanVersion Contract ContractState where
-    getAccessor :: (WorkflowEnvironment -> Maybe (StateKeys (Id'"contracts")(Id' "contract_states")))
-    getAccessor = contract
-    setShadowed :: (WorkflowEnvironment ->  Maybe (StateKeys (Id'"contracts")(Id' "contract_states"))) -> WorkflowEnvironment -> (Integer,[Integer]) -> WorkflowEnvironment
-    setShadowed accessor wfe shadow = let new :: StateKeys (Id'"contracts")(Id' "contract_states") = fromJust $ accessor wfe 
-        in wfe {contract = Just $ new { shadowed = Just shadow }}
-    setWorkFlowState :: WorkflowEnvironment -> Maybe (StateKeys (Id'"contracts")(Id' "contract_states")) -> WorkflowEnvironment
-    setWorkFlowState wfe s = wfe  {contract = s} 
-instance CanVersion Partner PartnerState where
-    getAccessor :: (WorkflowEnvironment ->Maybe (StateKeys (Id'"partners")(Id' "partner_states")))
-    getAccessor = partner
-    setShadowed :: (WorkflowEnvironment ->  Maybe (StateKeys (Id'"partners")(Id' "partner_states"))) -> WorkflowEnvironment -> (Integer,[Integer]) -> WorkflowEnvironment
-    setShadowed accessor wfe shadow = let new :: StateKeys (Id'"partners")(Id' "partner_states") = fromJust $ accessor wfe 
-        in wfe {partner = Just $ new { shadowed = Just shadow }}
-    setWorkFlowState :: WorkflowEnvironment ->Maybe (StateKeys (Id'"partners")(Id' "partner_states")) -> WorkflowEnvironment
-    setWorkFlowState wfe s = wfe  {partner = s} 
-instance CanVersion Tariff TariffState where
-    getAccessor :: (WorkflowEnvironment ->Maybe (StateKeys (Id'"tariffs")(Id' "tariff_states")))
-    getAccessor = tariff
-    setShadowed :: (WorkflowEnvironment ->  Maybe (StateKeys (Id'"tariffs")(Id' "tariff_states"))) -> WorkflowEnvironment -> (Integer,[Integer]) -> WorkflowEnvironment
-    setShadowed accessor wfe shadow = let new :: StateKeys (Id'"tariffs")(Id' "tariff_states") = fromJust $ accessor wfe 
-        in wfe {tariff = Just $ new { shadowed = Just shadow }}
-    setWorkFlowState :: WorkflowEnvironment ->Maybe (StateKeys (Id'"tariffs")(Id' "tariff_states")) -> WorkflowEnvironment
-    setWorkFlowState wfe s = wfe  {tariff = s} 
-instance CanVersion Adress AdressState where
-    getAccessor :: (WorkflowEnvironment ->Maybe (StateKeys (Id'"adresses")(Id' "adress_states")))
-    getAccessor = adress
-    setShadowed :: (WorkflowEnvironment ->  Maybe (StateKeys (Id'"adresses")(Id' "adress_states"))) -> WorkflowEnvironment -> (Integer,[Integer]) -> WorkflowEnvironment
-    setShadowed accessor wfe shadow = let new :: StateKeys (Id'"adresses")(Id' "adress_states") = fromJust $ accessor wfe 
-        in wfe {adress = Just $ new { shadowed = Just shadow }}
-    setWorkFlowState :: WorkflowEnvironment ->Maybe (StateKeys (Id'"adresses")(Id' "adress_states")) -> WorkflowEnvironment
-    setWorkFlowState wfe s = wfe  {adress = s} 
-
-instance CanVersion ContractPartner ContractPartnerState where
-    getAccessor :: (WorkflowEnvironment ->Maybe (StateKeys (Id'"contract_partners")(Id' "contract_partner_states")))
-    getAccessor = contractPartner
-
-instance CanVersion ContractTariff ContractTariffState where
-    getAccessor :: (WorkflowEnvironment ->Maybe (StateKeys (Id'"contract_tariffs")(Id' "contract_tariff_states")))
-    getAccessor = contractTariff
-
-instance CanVersion TariffPartner TariffPartnerState where
-    getAccessor :: (WorkflowEnvironment ->Maybe (StateKeys (Id'"tariff_partners")(Id' "tariff_partner_states")))
-    getAccessor = tariffPartner
-
-instance CanVersion PartnerAdress PartnerAdressState where
-    getAccessor :: (WorkflowEnvironment ->Maybe (StateKeys (Id'"partner_adresses")(Id' "partner_adress_states")))
-    getAccessor = partnerAdress
-
 class (CanVersion sourceEntity sourceState, CanVersion targetEntity targetState, CanVersion relation relationState, HasField "refTarget" relationState (Id targetState), SetField "refTarget" relationState (Id targetState)) => CanVersionRelation sourceEntity sourceState targetEntity targetState relation relationState
     where
-    putRelState :: (?modelContext::ModelContext, ?context::context, LoggingProvider context) => (WorkflowEnvironment ->  Maybe (StateKeys (Id relation)(Id relationState))) -> Id sourceState -> Id targetState -> Workflow -> IO()
-    putRelState accessor sid tid workflow = do
+    putRelState :: (?modelContext::ModelContext, ?context::context, LoggingProvider context) => Id sourceState -> Id targetState -> Workflow -> IO(relationState)
+    putRelState sid tid workflow = do
         src :: sourceState <- fetch sid
         tgt :: targetState <- fetch tid
         srcEntity :: sourceEntity <- fetch (get #refEntity src) 
         newRelation :: relation <- newRecord |> set #refHistory (get #refHistory srcEntity) |> createRecord
         newRelationState :: relationState <- newRecord |> set #refEntity (get #id newRelation) |> set #refTarget tid |>
             set #refValidfromversion (get #refValidfromversion src) |> set #refValidthruversion Nothing |> createRecord
-        let cpsLog = mkPersistenceLogState (mkInsertLog $ get #id newRelationState ) : getPLog workflow
-        workflow <- setPLog workflow cpsLog |> updateRecord
-        return ()
+--        let cpsLog = mkPersistenceLogState (mkInsertLog $ get #id newRelationState ) : getPLog workflow
+--        workflow <- setPLog workflow cpsLog |> updateRecord
+        return (newRelationState)
 
-instance CanVersionRelation Contract ContractState Partner PartnerState ContractPartner ContractPartnerState
-instance CanVersionRelation Contract ContractState Tariff TariffState ContractTariff ContractTariffState
-instance CanVersionRelation Tariff TariffState Partner PartnerState TariffPartner TariffPartnerState
-instance CanVersionRelation Partner PartnerState Adress AdressState PartnerAdress PartnerAdressState
