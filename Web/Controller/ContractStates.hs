@@ -76,7 +76,7 @@ instance Controller ContractStatesController where
                 Right contractState -> do
                     workflow <- getCurrentWorkflow
                     workflowId <- getCurrentWorkflowId
-                    contractState <- createHistory contract workflow  contractState
+                    contractState <- createHistory workflowId HistorytypeContract (get #validfrom workflow) contractState
                     setSuccessMessage "ContractState created"
                     Log.info $ " CreateContractState Current workflow" ++ show (get #id workflow) ++ "WorkflowId=" ++ show workflowId
                     redirectToPath (pathTo (NextWorkflowAction) <> "?Workflow=Next") 

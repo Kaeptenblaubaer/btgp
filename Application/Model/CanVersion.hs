@@ -129,32 +129,26 @@ class (Show e, KnownSymbol (GetTableName e), e ~ GetModelByTableName (GetTableNa
             Nothing -> do
                 pure $ Right "SHOULDN'T: empty progress data"
 
-    createHistory :: (?modelContext::ModelContext, ?context::context, LoggingProvider context ) => (WorkflowEnvironment ->  Maybe (StateKeys (Id e)(Id s))) -> Workflow -> s -> IO (s,StateKeys (Id e)(Id s))
-    createHistory accessor workflow state = do
-        Log.info $ "createHistory for workflow: " ++ show (get #id workflow)
-        history ::History <- newRecord |> set #historyType (get #historyType workflow) |> set #refOwnedByWorkflow (Just $ get #id workflow)|> createRecord
-        let historyUUID ::UUID = bubu $ get #id history
-                                    where bubu (Id uuid) = uuid
-        version :: Version <- newRecord |> set #refHistory (get #id history) |>  set #validfrom (get #validfrom workflow) |> createRecord
-        let versionId :: Integer = bubu $ get #id version
-                                    where bubu (Id intid) = intid
-            histoType = get #historyType workflow
+    createHistory :: (?modelContext::ModelContext, ?context::context, LoggingProvider context ) => Id Workflow -> HistoryType -> Day -> s -> IO (s,StateKeys (Id e)(Id s),[PersistenceLog])
+    createHistory workflowId historyType validFrom state = do
+        history ::History <- newRecord |> set #historyType historyType |> set #refOwnedByWorkflow (Just workflowId) |> createRecord
+        let historyUUID ::UUID = f $ get #id history
+                                    where f (Id uuid) = uuid
+        version :: Version <- newRecord |> set #refHistory (get #id history) |>  set #validfrom validFrom |> createRecord
+        let versionId :: Integer = f $ get #id version
+                                    where f (Id intid) = intid
         entity ::e <- newRecord |> set #refHistory (get #id history) |> createRecord
         state ::s <- state |> set #refEntity (get #id entity) |> set #refValidfromversion (get #id version) |> createRecord
         let entityId = get #id entity
             stateId = get #id state
             cruE :: PersistenceLog = mkPersistenceLogState $ mkInsertLog entityId
             cruS :: PersistenceLog = mkPersistenceLogState $ mkInsertLog stateId
-            cruW :: PersistenceLog = mkPersistenceLogState $ mkInsertLog $ get #id workflow
+            cruW :: PersistenceLog = mkPersistenceLogState $ mkInsertLog $ workflowId
             cruH :: PersistenceLog = mkPersistenceLogState $ mkInsertLog $ get #id history
             cruV :: PersistenceLog  = mkPersistenceLogState $ mkInsertLog $ get #id version
             pl :: [PersistenceLog] = [cruE, cruS, cruW, cruH, cruV]
             sk :: StateKeys (Id e)(Id s) = stateKeysDefault {history = Just historyUUID, version = Just versionId, entity = Just entityId, state = Just stateId}
-            wfe = setWorkFlowState workflowEnvironmentDefault $ Just sk 
-            progress = toJSON wfe {plog = pl}
-        uptodate ::Workflow <- workflow |> set #progress progress |> updateRecord
-        Log.info ("hier ist Workflow mit JSON " ++ show (get #progress uptodate))
-        pure (state,sk)
+        pure (state,sk, pl)
     
     getShadowed :: (WorkflowEnvironment ->  Maybe (StateKeys (Id e)(Id s))) -> WorkflowEnvironment -> Maybe (Integer,[Integer])
     getShadowed accessor wfe = shadowed $ fromJust $ accessor wfe 
