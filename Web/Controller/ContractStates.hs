@@ -76,7 +76,8 @@ instance Controller ContractStatesController where
                 Right contractState -> do
                     workflow <- getCurrentWorkflow
                     workflowId <- getCurrentWorkflowId
-                    contractState <- createHistory workflowId HistorytypeContract (get #validfrom workflow) contractState
+                    csk@(contractState,contractKeys,pLog)::(ContractState, StateKeys (Id Contract)(Id ContractState),[PersistenceLog]) <- createHistory workflowId HistorytypeContract (get #validfrom workflow) contractState
+                    workflow |> set #progress (toJSON workflowEnvironmentDefault {contract=Just contractKeys, plog = pLog} )|> updateRecord 
                     setSuccessMessage "ContractState created"
                     Log.info $ " CreateContractState Current workflow" ++ show (get #id workflow) ++ "WorkflowId=" ++ show workflowId
                     redirectToPath (pathTo (NextWorkflowAction) <> "?Workflow=Next") 
