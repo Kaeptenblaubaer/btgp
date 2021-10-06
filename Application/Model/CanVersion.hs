@@ -289,15 +289,18 @@ selectStatesByValidFromMaxTxn historyType valid maxtxn options pagination = do
     pure (result,pagination {currentPage= currentPage pagination +1})
 class (CanVersion sourceEntity sourceState, CanVersion targetEntity targetState, CanVersion relation relationState, HasField "refTarget" relationState (Id targetState), SetField "refTarget" relationState (Id targetState)) => CanVersionRelation sourceEntity sourceState targetEntity targetState relation relationState
     where
-    putRelState :: (?modelContext::ModelContext, ?context::context, LoggingProvider context) => Id sourceState -> Id targetState -> Workflow -> IO(relationState)
-    putRelState sid tid workflow = do
+    putRelState :: (?modelContext::ModelContext, ?context::context, LoggingProvider context) => Id sourceState -> Id targetState -> IO((relationState, [PersistenceLog] ))
+    putRelState sid tid = do
         src :: sourceState <- fetch sid
         tgt :: targetState <- fetch tid
         srcEntity :: sourceEntity <- fetch (get #refEntity src) 
         newRelation :: relation <- newRecord |> set #refHistory (get #refHistory srcEntity) |> createRecord
         newRelationState :: relationState <- newRecord |> set #refEntity (get #id newRelation) |> set #refTarget tid |>
             set #refValidfromversion (get #refValidfromversion src) |> set #refValidthruversion Nothing |> createRecord
---        let cpsLog = mkPersistenceLogState (mkInsertLog $ get #id newRelationState ) : getPLog workflow
---        workflow <- setPLog workflow cpsLog |> updateRecord
-        return (newRelationState)
+        let entityId = get #id newRelation
+            stateId = get #id newRelationState
+            cruE :: PersistenceLog = mkPersistenceLogState $ mkInsertLog entityId
+            cruS :: PersistenceLog = mkPersistenceLogState $ mkInsertLog stateId
+            pl :: [PersistenceLog] = [cruE, cruS]
+        return (newRelationState, pl)
 

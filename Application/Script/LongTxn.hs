@@ -25,24 +25,20 @@ run = do
 
     ask@(adressState,adressKeys,pLog)::(AdressState, StateKeys (Id Adress)(Id AdressState),[PersistenceLog]) <- createHistory (get #id wfa) HistorytypeAdress validfrom0 a0
     Log.info $ show adressKeys
-    wfa :: Workflow <- fetch (get #id wfa) 
     wfa :: Workflow <- wfa |> set #progress (toJSON workflowEnvironmentDefault {adress=Just adressKeys, plog = pLog} )|> updateRecord 
     result <- fetch (get #id wfa) >>= commitState adress
     Log.info $ show result
 
     psk@(partnerState,partnerKeys,pLog)::(PartnerState, StateKeys (Id Partner)(Id PartnerState),[PersistenceLog]) <- createHistory (get #id wfp) HistorytypePartner validfrom0 p0
     Log.info $ show partnerKeys
-    wfp :: Workflow <- fetch (get #id wfp) 
     wfp <- wfp |> set #progress (toJSON workflowEnvironmentDefault {partner=Just partnerKeys, plog = pLog}) |> updateRecord  
     wfp <- fetch (get #id wfp)
     Log.info $ show "bubu"
     
---    newRelationState :: PartnerAdressState <- putRelState (get #id partnerState) (get #id adressState) wfp
---    let pasLog = mkPersistenceLogState (mkInsertLog $ get #id newRelationState ) : getPLog wfp
---    workflow <- setPLog wfp pasLog |> updateRecord
---    Log.info $ show $ snd psk
---    result <- fetch (get #id wfp) >>= commitState partner
---    Log.info $ show result
+    (newRelationState,pLog):: (PartnerAdressState,[PersistenceLog]) <- putRelState (get #id partnerState) (get #id adressState) 
+    wfp <- setPLog wfp (pLog ++ getPLog wfp) |> updateRecord
+    result <- fetch (get #id wfp) >>= commitState partner
+    Log.info $ show result
 --
 --    tsk@(tariffState,tariffKeys)::(TariffState, StateKeys (Id Tariff)(Id TariffState)) <- createHistory tariff wft t0
 --    wft <- fetch (get #id wft)
