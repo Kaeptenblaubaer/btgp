@@ -1,0 +1,11 @@
+{
+	"folders": [
+		{
+			"path": "../.."
+		}
+	],
+	"settings": {
+		"nixEnvSelector.nixFile": "${workspaceRoot}/default.nix",
+		"terminal.integrated.cwd": "${workspaceRoot}"
+	}
+}

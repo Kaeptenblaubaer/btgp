@@ -23,43 +23,66 @@ run = do
         t0 :: TariffState = newRecord |> set #content "First Tariff"
         a0 :: AdressState = newRecord |> set #content "First Adress"
 
-    ask@(adressState,adressKeys,pLog)::(AdressState, StateKeys (Id Adress)(Id AdressState),[PersistenceLog]) <- createHistory (get #id wfa) HistorytypeAdress validfrom0 a0
-    Log.info $ show adressKeys
-    wfa :: Workflow <- wfa |> set #progress (toJSON workflowEnvironmentDefault {adress=Just adressKeys, plog = pLog} )|> updateRecord 
+-- Create an Adress
+    ask@(adressState,adressKeys,pLogA)::(AdressState, StateKeys (Id Adress)(Id AdressState),[PersistenceLog]) <- createHistory (get #id wfa) HistorytypeAdress validfrom0 a0
+    Log.info $ "create History adress " ++ show adressKeys
+    let wfenvA = workflowEnvironmentDefault {adress=Just adressKeys, plog = pLogA}
+    wfa :: Workflow <- wfa |> set #progress (toJSON wfenvA )|> updateRecord 
     result <- fetch (get #id wfa) >>= commitState adress
-    Log.info $ show result
+    Log.info $ "adress " ++ show result
 
-    psk@(partnerState,partnerKeys,pLog)::(PartnerState, StateKeys (Id Partner)(Id PartnerState),[PersistenceLog]) <- createHistory (get #id wfp) HistorytypePartner validfrom0 p0
-    Log.info $ show partnerKeys
-    wfp <- wfp |> set #progress (toJSON workflowEnvironmentDefault {partner=Just partnerKeys, plog = pLog}) |> updateRecord  
+-- Create a partner and attach the pdress
+    psk@(partnerState,partnerKeys,pLogP)::(PartnerState, StateKeys (Id Partner)(Id PartnerState),[PersistenceLog]) <- createHistory (get #id wfp) HistorytypePartner validfrom0 p0
+    Log.info $ "create History partner " ++ show partnerKeys
+    let wfenvP = workflowEnvironmentDefault {partner=Just partnerKeys, plog = pLogP}
+    wfp <- wfp |> set #progress (toJSON wfenvP) |> updateRecord  
     wfp <- fetch (get #id wfp)
-    Log.info $ show "bubu"
-    
-    (newRelationState,pLog):: (PartnerAdressState,[PersistenceLog]) <- putRelState (get #id partnerState) (get #id adressState) 
-    wfp <- setPLog wfp (pLog ++ getPLog wfp) |> updateRecord
+
+-- Attach the adress
+    (partnerAdressState,partnerAdressKeys,pLogPA):: (PartnerAdressState,StateKeys (Id PartnerAdress) (Id PartnerAdressState),[PersistenceLog]) <- putRelState (get #id partnerState) (get #id adressState) 
+    Log.info $ "putrelstates partnerAdress " ++ show partnerAdressKeys
+    let wfenvPA = wfenvP {partnerAdress=Just(partnerAdressKeys), plog = pLogP ++ pLogPA}
+    Log.info $ "wfenv partneraDRESS = " ++ show wfenvPA
+    wfp <- wfp |> set #progress (toJSON wfenvPA) |> updateRecord
     result <- fetch (get #id wfp) >>= commitState partner
-    Log.info $ show result
---
---    tsk@(tariffState,tariffKeys)::(TariffState, StateKeys (Id Tariff)(Id TariffState)) <- createHistory tariff wft t0
---    wft <- fetch (get #id wft)
---    Log.info $ show $ snd tsk
---    newRelationState :: TariffPartnerState <- putRelState (get #id tariffState) (get #id partnerState) wft
---    let tpsLog = mkPersistenceLogState (mkInsertLog $ get #id newRelationState ) : getPLog wft
---    workflow <- setPLog wft tpsLog |> updateRecord
---    result <- fetch (get #id wft) >>= commitState tariff
---    Log.info $ show result
---    
---    csk@(contractState,contractKeys)::(ContractState, StateKeys (Id Contract)(Id ContractState)) <- createHistory contract wfc c0
---    wfc <- fetch (get #id wfc)
---    Log.info $ show $ snd csk
---    Log.info $ show result
---    newRelationState :: ContractPartnerState <- putRelState (get #id contractState) (get #id partnerState) wfc
---    let cpsLog = mkPersistenceLogState (mkInsertLog $ get #id newRelationState ) : getPLog wfc
---    newRelationState :: ContractTariffState <- putRelState (get #id contractState) (get #id tariffState) wfc
---    let ctsLog = mkPersistenceLogState (mkInsertLog $ get #id newRelationState ) : cpsLog
---    workflow <- setPLog wfc ctsLog |> updateRecord
---    result <- fetch (get #id wfc) >>= commitState contract
---    Log.info $ show result
+    Log.info $ "partner + partneradress " ++ show result
+
+-- Create a tariff and attach the partner
+
+    tsk@(tariffState,tariffKeys,pLogT)::(TariffState, StateKeys (Id Tariff)(Id TariffState),[PersistenceLog]) <- createHistory (get #id wft) HistorytypeTariff validfrom0 t0
+    Log.info $ "create History tariff " ++ show tariffKeys
+    let wfenvT = workflowEnvironmentDefault {tariff=Just tariffKeys, plog = pLogT}
+    wft <- wft |> set #progress (toJSON wfenvT) |> updateRecord  
+    wft <- fetch (get #id wft)
+-- Attach the partner    
+    (tariffPartnerState,tariffPartnerKeys,pLogTP):: (TariffPartnerState,StateKeys (Id TariffPartner) (Id TariffPartnerState),[PersistenceLog]) <- putRelState (get #id tariffState) (get #id partnerState) 
+    Log.info $ "putrelstates tariffpartner " ++ show tariffPartnerKeys
+    let wfenvTP = wfenvT  {tariffPartner=Just(tariffPartnerKeys), plog = pLogT ++ pLogTP}
+    wft <- wft |> set #progress (toJSON wfenvTP) |> updateRecord  
+    result <- fetch (get #id wft) >>= commitState tariff
+    Log.info $ show "tariff + tariffpartner " ++ show result
+
+-- Create a contract and attach the partner and the tariff
+    csk@(contractState,contractKeys,pLogC)::(ContractState, StateKeys (Id Contract)(Id ContractState),[PersistenceLog]) <- createHistory (get #id wft) HistorytypeContract validfrom0 c0
+    Log.info $ "create History contract " ++ show contractKeys
+    let wfenvC = workflowEnvironmentDefault {contract=Just contractKeys, plog = pLogC}
+    wfc <- wfc |> set #progress (toJSON wfenvC) |> updateRecord  
+    wfc <- fetch (get #id wfc)
+-- attach the partner    
+    (contractPartnerState,contractPartnerKeys,pLogCP):: (ContractPartnerState,StateKeys (Id ContractPartner) (Id ContractPartnerState),[PersistenceLog]) <- putRelState (get #id contractState) (get #id partnerState) 
+    Log.info $ "putrelstates contractpartner " ++ show contractPartnerKeys
+    let wfenvCP = wfenvC  {contractPartner=Just(contractPartnerKeys), plog = pLogC ++ pLogCP}
+    wfc <- wfc |> set #progress (toJSON wfenvCP) |> updateRecord 
+    Log.info $ show "contract + contractpartner " ++ show result
+-- attach the tariff
+    (contractTariffState,contractTariffKeys,pLogCT):: (ContractTariffState,StateKeys (Id ContractTariff) (Id ContractTariffState),[PersistenceLog]) <- putRelState (get #id contractState) (get #id tariffState) 
+    Log.info $ "putrelstates contracttariff " ++ show contractTariffKeys
+    let wfenvCT = wfenvC  {contractTariff=Just(contractTariffKeys), plog = pLogC ++ pLogCT}
+    wfc <- wfc |> set #progress (toJSON wfenvCT) |> updateRecord  
+    result <- fetch (get #id wfc) >>= commitState contract
+    Log.info $ show "contract + contracttariff " ++ show result
+
+
 --
 --    let validfrom1 :: Day = fromGregorian 2021 7 1
 -- 

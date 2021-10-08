@@ -62,13 +62,13 @@ class (Show e, KnownSymbol (GetTableName e), e ~ GetModelByTableName (GetTableNa
     getWorkFlowState :: WorkflowEnvironment ->  Maybe (StateKeys (Id e)(Id s))
     getWorkFlowState wfe = getAccessor wfe
     setWorkFlowState :: WorkflowEnvironment -> Maybe (StateKeys (Id e)(Id s)) -> WorkflowEnvironment
-    updateWfpV :: (WorkflowEnvironment ->  Maybe (StateKeys (Id e)(Id s))) -> WorkflowEnvironment -> UUID -> Id e -> Maybe Integer -> Maybe (Id s) -> Value
+    updateWfpV :: (WorkflowEnvironment ->  Maybe (StateKeys (Id e)(Id s))) -> WorkflowEnvironment -> Id History -> Id e -> Maybe (Id Version) -> Maybe (Id s) -> Value
     updateWfpV accessor wfe hId eId vIdMB sIdMB = fromJust $ decode $ encode $ setWorkFlowState wfe (Just ((fromJust $ accessor wfe) { history= Just hId, entity = Just eId, version= vIdMB, state= sIdMB } ))
-    initialWfpV:: (WorkflowEnvironment ->  Maybe (StateKeys (Id e)(Id s))) -> UUID -> Value
+    initialWfpV:: (WorkflowEnvironment ->  Maybe (StateKeys (Id e)(Id s))) -> Id History -> Value
     initialWfpV accessor h = fromJust $ decode $ encode $ setWorkFlowState workflowEnvironmentDefault (Just ((fromJust $ accessor workflowEnvironmentDefault) { history= Just h} ))
-    getStatehistoryIdMB :: (WorkflowEnvironment ->  Maybe (StateKeys (Id e)(Id s))) -> WorkflowEnvironment -> Maybe UUID
+    getStatehistoryIdMB :: (WorkflowEnvironment ->  Maybe (StateKeys (Id e)(Id s))) -> WorkflowEnvironment -> Maybe (Id History)
     getStatehistoryIdMB accessor wfe = history =<< accessor wfe
-    getStateVersionIdMB :: (WorkflowEnvironment ->  Maybe (StateKeys (Id e)(Id s))) ->WorkflowEnvironment -> Maybe Integer
+    getStateVersionIdMB :: (WorkflowEnvironment ->  Maybe (StateKeys (Id e)(Id s))) ->WorkflowEnvironment -> Maybe (Id Version)
     getStateVersionIdMB accessor wfe = version =<< accessor wfe
     getEntityIdMB :: (WorkflowEnvironment ->  Maybe (StateKeys (Id e)(Id s))) ->WorkflowEnvironment -> Maybe (Id e)
     getEntityIdMB  accessor wfe = entity =<< accessor wfe
@@ -90,12 +90,12 @@ class (Show e, KnownSymbol (GetTableName e), e ~ GetModelByTableName (GetTableNa
                             Just e -> case getStateIdMB accessor wfe of
                                 Just s -> withTransaction do 
                                     Log.info $ "committing h:" ++ show h
-                                    hUnlocked :: History <- fetch (Id h)
+                                    hUnlocked :: History <- fetch h
                                     hUnlocked |> set #refOwnedByWorkflow Nothing |> updateRecord
                                     Log.info $ "Unlocked h:" ++ show h
                                     Log.info $ "version=" ++ show v
                                     Log.info $ "entity=" ++ show e
-                                    newVersion :: Version <- fetch (Id v)
+                                    newVersion :: Version <- fetch v
                                     newVersion |>set #committed True |> updateRecord
                                     Log.info $ "commit version v: " ++ show v
                                     w <- workflow |> set #workflowStatus "committed" |> updateRecord
@@ -105,7 +105,7 @@ class (Show e, KnownSymbol (GetTableName e), e ~ GetModelByTableName (GetTableNa
                                         filterWhere(#refValidthruversion,Nothing) |> fetch
                                     case head sOld of
                                         Just sOld -> do
-                                                sUpd :: s <- sOld |> set #refValidthruversion (Just (Id v)) |> updateRecord
+                                                sUpd :: s <- sOld |> set #refValidthruversion (Just v) |> updateRecord
                                                 Log.info $ "predecessor state terminated" ++ show s
                                         Nothing -> Log.info ("no predecessor state" ::String)
                                     case getShadowed accessor wfe of
@@ -132,14 +132,12 @@ class (Show e, KnownSymbol (GetTableName e), e ~ GetModelByTableName (GetTableNa
     createHistory :: (?modelContext::ModelContext, ?context::context, LoggingProvider context ) => Id Workflow -> HistoryType -> Day -> s -> IO (s,StateKeys (Id e)(Id s),[PersistenceLog])
     createHistory workflowId historyType validFrom state = do
         history ::History <- newRecord |> set #historyType historyType |> set #refOwnedByWorkflow (Just workflowId) |> createRecord
-        let historyUUID ::UUID = f $ get #id history
-                                    where f (Id uuid) = uuid
+        let historyId = get #id history
         version :: Version <- newRecord |> set #refHistory (get #id history) |>  set #validfrom validFrom |> createRecord
-        let versionId :: Integer = f $ get #id version
-                                    where f (Id intid) = intid
         entity ::e <- newRecord |> set #refHistory (get #id history) |> createRecord
         state ::s <- state |> set #refEntity (get #id entity) |> set #refValidfromversion (get #id version) |> createRecord
-        let entityId = get #id entity
+        let versionId = get #id version
+            entityId = get #id entity
             stateId = get #id state
             cruE :: PersistenceLog = mkPersistenceLogState $ mkInsertLog entityId
             cruS :: PersistenceLog = mkPersistenceLogState $ mkInsertLog stateId
@@ -147,7 +145,7 @@ class (Show e, KnownSymbol (GetTableName e), e ~ GetModelByTableName (GetTableNa
             cruH :: PersistenceLog = mkPersistenceLogState $ mkInsertLog $ get #id history
             cruV :: PersistenceLog  = mkPersistenceLogState $ mkInsertLog $ get #id version
             pl :: [PersistenceLog] = [cruE, cruS, cruW, cruH, cruV]
-            sk :: StateKeys (Id e)(Id s) = stateKeysDefault {history = Just historyUUID, version = Just versionId, entity = Just entityId, state = Just stateId}
+            sk :: StateKeys (Id e)(Id s) = stateKeysDefault {history = Just historyId, version = Just versionId, entity = Just entityId, state = Just stateId}
         pure (state,sk, pl)
     
     getShadowed :: (WorkflowEnvironment ->  Maybe (StateKeys (Id e)(Id s))) -> WorkflowEnvironment -> Maybe (Integer,[Integer])
@@ -171,7 +169,7 @@ class (Show e, KnownSymbol (GetTableName e), e ~ GetModelByTableName (GetTableNa
                 version :: Version <- newRecord |> set #refHistory (get #refHistory entity) |> set #validfrom (get #validfrom workflow) |> createRecord
                 newState :: s <- newRecord |> set #refEntity entityId |> set #refValidfromversion (get #id version) |>
                     set #content (get #content state) |> createRecord
-                let wfpNew :: Value = updateWfpV accessor wfprogress (fromId $ get #refHistory entity) entityId (Just $ fromId $ get #id version) (Just $ get #id newState )
+                let wfpNew :: Value = updateWfpV accessor wfprogress (get #refHistory entity) entityId (Just $ get #id version) (Just $ get #id newState )
                 workflow :: Workflow <- workflow |> set #progress wfpNew   |> updateRecord  
                 Log.info $ "mutateHistory Update new Version = " ++  show (get #id newState)           
                 pure (workflow,newState)
@@ -190,11 +188,12 @@ class (Show e, KnownSymbol (GetTableName e), e ~ GetModelByTableName (GetTableNa
         let historyId =  fromJust $ getStatehistoryIdMB accessor wfprogress
         Log.info $ "queryVersionMutableValidfrom HistoryId:" ++ show historyId ++ "validfrom" ++ show validfrom
         let q :: Query = "SELECT * FROM versions v WHERE v.id in (SELECT max(id) FROM versions where ref_history = ? and validfrom <= ?)"
-            p :: (Id History, Text) = (Id historyId, validfrom)
+            p :: (Id History, Text) = (historyId, validfrom)
         vs :: [Version]  <- sqlQuery  q p
         let versionId = get #id $ fromJust $ head vs 
         let q2 :: Query = "SELECT * FROM versions v WHERE ref_history = ? and v.id > ? and validfrom > ?"
-        let p2 :: (Id History, Id Version,Text) = (Id historyId, versionId, validfrom)
+        let p2 :: (Id History, Id Version,Text) =
+             (historyId, versionId, validfrom)
         shadowed :: [Version]  <- sqlQuery  q2 p2
         let shadowedIds :: [Integer] = map (getKey . get #id) shadowed  
         Log.info ( "queryVersionMutableValidfrom versionId / shadowed / workflowId =" ++ show versionId ++ "/" ++ show shadowedIds ++ "/" ++ show (get #id workflow))
@@ -231,7 +230,7 @@ class (Show e, KnownSymbol (GetTableName e), e ~ GetModelByTableName (GetTableNa
         Log.info $ "runMutation entity =" ++ show eId
         entity :: e <- fetch eId
         let hid :: (Id History) = get #refHistory entity
-            wfpJ :: Value = updateWfpV accessor workflowEnvironmentDefault (fromId hid) eId Nothing Nothing 
+            wfpJ :: Value = updateWfpV accessor workflowEnvironmentDefault hid eId Nothing Nothing 
         Log.info $ "runMutation history = " ++ show hid
         workflow <- newRecord |> set #refUser (get #id usr) |> set #historyType histoType |> set #workflowType WftypeUpdate |> 
             set #progress wfpJ |> set #validfrom validfrom |> createRecord
@@ -289,18 +288,23 @@ selectStatesByValidFromMaxTxn historyType valid maxtxn options pagination = do
     pure (result,pagination {currentPage= currentPage pagination +1})
 class (CanVersion sourceEntity sourceState, CanVersion targetEntity targetState, CanVersion relation relationState, HasField "refTarget" relationState (Id targetState), SetField "refTarget" relationState (Id targetState)) => CanVersionRelation sourceEntity sourceState targetEntity targetState relation relationState
     where
-    putRelState :: (?modelContext::ModelContext, ?context::context, LoggingProvider context) => Id sourceState -> Id targetState -> IO((relationState, [PersistenceLog] ))
+    putRelState :: (?modelContext::ModelContext, ?context::context, LoggingProvider context) => Id sourceState -> Id targetState -> IO((relationState, StateKeys(Id relation) (Id relationState),[PersistenceLog] ))
     putRelState sid tid = do
+        Log.info $ tshow "enter commitState" 
         src :: sourceState <- fetch sid
         tgt :: targetState <- fetch tid
-        srcEntity :: sourceEntity <- fetch (get #refEntity src) 
-        newRelation :: relation <- newRecord |> set #refHistory (get #refHistory srcEntity) |> createRecord
+        entity :: sourceEntity <- fetch (get #refEntity src) 
+        version :: sourceEntity <- fetch (get #refEntity src) 
+        let historyId = get #refHistory entity
+            versionId = get #refValidfromversion src
+        newRelation :: relation <- newRecord |> set #refHistory historyId |> createRecord
         newRelationState :: relationState <- newRecord |> set #refEntity (get #id newRelation) |> set #refTarget tid |>
-            set #refValidfromversion (get #refValidfromversion src) |> set #refValidthruversion Nothing |> createRecord
+            set #refValidfromversion versionId |> set #refValidthruversion Nothing |> createRecord
         let entityId = get #id newRelation
             stateId = get #id newRelationState
             cruE :: PersistenceLog = mkPersistenceLogState $ mkInsertLog entityId
             cruS :: PersistenceLog = mkPersistenceLogState $ mkInsertLog stateId
             pl :: [PersistenceLog] = [cruE, cruS]
-        return (newRelationState, pl)
+            sk :: StateKeys (Id relation)(Id relationState) = stateKeysDefault {history = Just historyId, version = Just versionId, entity = Just entityId, state = Just stateId}
+        return (newRelationState, sk, pl)
 

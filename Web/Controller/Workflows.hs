@@ -75,9 +75,8 @@ instance Controller WorkflowsController where
                                 "UpdateContractStatePartnerState" -> do
                                     let partnerStateId :: (Id PartnerState) = (Id (param "partnerStateId"))
                                     Log.info $ "UpdateContractStatePartnerState cs=" ++ show sid ++ " ps=" ++ show partnerStateId
-                                    newRelationState :: ContractPartnerState <- putRelState  sid partnerStateId workflow
-                                    let cpsLog = mkPersistenceLogState (mkInsertLog $ get #id newRelationState ) : getPLog workflow
-                                    workflow <- setPLog workflow cpsLog |> updateRecord
+                                    (contractPartnerState,contractPartnerKeys,pLog):: (ContractPartnerState, StateKeys(Id ContractPartner)(Id ContractPartnerState),[PersistenceLog]) <- putRelState sid partnerStateId
+                                    workflow <- setPLog workflow (pLog ++ getPLog workflow) |> updateRecord
                                     let pLog = getPLog workflow
                                     Log.info $ "PLOG after PutRel: " ++ show pLog
                                     redirectTo $ EditContractStateAction sid
