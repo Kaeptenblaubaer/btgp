@@ -148,9 +148,9 @@ class (Show e, KnownSymbol (GetTableName e), e ~ GetModelByTableName (GetTableNa
             sk :: StateKeys (Id e)(Id s) = stateKeysDefault {history = Just historyId, version = Just versionId, entity = Just entityId, state = Just stateId}
         pure (state,sk, pl)
     
-    getShadowed :: (WorkflowEnvironment ->  Maybe (StateKeys (Id e)(Id s))) -> WorkflowEnvironment -> Maybe (Integer,[Integer])
+    getShadowed :: (WorkflowEnvironment ->  Maybe (StateKeys (Id e)(Id s))) -> WorkflowEnvironment -> Maybe (Id Version,[Id Version])
     getShadowed accessor wfe = shadowed $ fromJust $ accessor wfe 
-    setShadowed :: (WorkflowEnvironment ->  Maybe (StateKeys (Id e)(Id s))) -> WorkflowEnvironment -> (Integer,[Integer]) -> WorkflowEnvironment
+    setShadowed :: (WorkflowEnvironment ->  Maybe (StateKeys (Id e)(Id s))) -> WorkflowEnvironment -> (Id Version,[Id Version]) -> WorkflowEnvironment
 
     mutateHistory :: (?modelContext::ModelContext, ?context::context, LoggingProvider context) => (WorkflowEnvironment ->  Maybe (StateKeys (Id e)(Id s))) -> Workflow -> s -> IO (Workflow, s)
     mutateHistory accessor workflow state = do
@@ -195,9 +195,9 @@ class (Show e, KnownSymbol (GetTableName e), e ~ GetModelByTableName (GetTableNa
         let p2 :: (Id History, Id Version,Text) =
              (historyId, versionId, validfrom)
         shadowed :: [Version]  <- sqlQuery  q2 p2
-        let shadowedIds :: [Integer] = map (getKey . get #id) shadowed  
+        let shadowedIds :: [Id Version] = map (get #id) shadowed  
         Log.info ( "queryVersionMutableValidfrom versionId / shadowed / workflowId =" ++ show versionId ++ "/" ++ show shadowedIds ++ "/" ++ show (get #id workflow))
-        workflow :: Workflow <- setWfe workflow (setShadowed accessor wfprogress (getKey versionId, shadowedIds)) |> updateRecord
+        workflow :: Workflow <- setWfe workflow (setShadowed accessor wfprogress (versionId, shadowedIds)) |> updateRecord
         Log.info ("queryVersionMutableValidfrom progress=" ++ show (getWfe workflow ))
         pure (workflow, fromJust $ head vs, shadowed)
             where getKey (Id key) = key
