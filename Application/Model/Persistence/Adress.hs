@@ -12,7 +12,7 @@ import Generated.Types
 instance CanVersion Adress AdressState where
     getAccessor :: (WorkflowEnvironment ->Maybe (StateKeys (Id'"adresses")(Id' "adress_states")))
     getAccessor = adress
-    setShadowed :: (WorkflowEnvironment ->  Maybe (StateKeys (Id'"adresses")(Id' "adress_states"))) -> WorkflowEnvironment -> (Integer,[Integer]) -> WorkflowEnvironment
+    setShadowed :: (WorkflowEnvironment ->  Maybe (StateKeys (Id'"adresses")(Id' "adress_states"))) -> WorkflowEnvironment -> (Id Version,[Id Version]) -> WorkflowEnvironment
     setShadowed accessor wfe shadow = let new :: StateKeys (Id'"adresses")(Id' "adress_states") = fromJust $ accessor wfe 
         in wfe {adress = Just $ new { shadowed = Just shadow }}
     setWorkFlowState :: WorkflowEnvironment ->Maybe (StateKeys (Id'"adresses")(Id' "adress_states")) -> WorkflowEnvironment

@@ -58,7 +58,7 @@ fromId :: Id' table -> PrimaryKey table
 fromId (Id key) = key
 
 data StateKeys entityId stateId = StateKeys  {
-    history :: Maybe (Id History) , version :: Maybe (Id Version), entity :: Maybe entityId, state :: Maybe stateId, shadowed :: Maybe (Integer,[Integer])} deriving (Show, Generic)
+    history :: Maybe (Id History) , version :: Maybe (Id Version), entity :: Maybe entityId, state :: Maybe stateId, shadowed :: Maybe (Id Version,[Id Version])} deriving (Show, Generic)
 stateKeysDefault = StateKeys Nothing Nothing Nothing Nothing Nothing 
 
 data WorkflowEnvironment = WorkflowEnvironment {

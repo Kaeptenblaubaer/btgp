@@ -75,59 +75,52 @@ class (Show e, KnownSymbol (GetTableName e), e ~ GetModelByTableName (GetTableNa
     getStateIdMB :: (WorkflowEnvironment ->  Maybe (StateKeys (Id e)(Id s))) ->WorkflowEnvironment -> Maybe (Id s)
     getStateIdMB  accessor wfe = state =<< accessor wfe
 
-    commitState :: (?modelContext::ModelContext, ?context::context, LoggingProvider context ) => (WorkflowEnvironment ->  Maybe (StateKeys (Id e)(Id s))) -> Workflow -> IO (Either Text Text)
-    commitState accessor workflow = do
+    commitState :: (?modelContext::ModelContext, ?context::context, LoggingProvider context ) => StateKeys (Id e)(Id s) -> Workflow -> IO (Either Text Text)
+    commitState wfe workflow = do
         let workflowId = get #id workflow
         Log.info $ "ToCOmmitWF wf=" ++ show workflowId
-        let wfpMB = getWfe workflow
-        Log.info ("ende"::String)
-        putStrLn "Ende commit"
-        case wfpMB of
-            Just wfe -> do
-                case getStatehistoryIdMB accessor wfe of
-                    Just h -> case getStateVersionIdMB accessor wfe of
-                        Just v -> case getEntityIdMB accessor wfe of
-                            Just e -> case getStateIdMB accessor wfe of
-                                Just s -> withTransaction do 
-                                    Log.info $ "committing h:" ++ show h
-                                    hUnlocked :: History <- fetch h
-                                    hUnlocked |> set #refOwnedByWorkflow Nothing |> updateRecord
-                                    Log.info $ "Unlocked h:" ++ show h
-                                    Log.info $ "version=" ++ show v
-                                    Log.info $ "entity=" ++ show e
-                                    newVersion :: Version <- fetch v
-                                    newVersion |>set #committed True |> updateRecord
-                                    Log.info $ "commit version v: " ++ show v
-                                    w <- workflow |> set #workflowStatus "committed" |> updateRecord
-                                    Log.info $ "commit workflow w: " ++ show w
-                                    sOld :: [s] <- query @ s |> filterWhere (#refEntity, e) |>
-                                        filterWhereSql(#refValidfromversion,"<> " ++ encodeUtf8( show v)) |>
-                                        filterWhere(#refValidthruversion,Nothing) |> fetch
-                                    case head sOld of
-                                        Just sOld -> do
-                                                sUpd :: s <- sOld |> set #refValidthruversion (Just v) |> updateRecord
-                                                Log.info $ "predecessor state terminated" ++ show s
-                                        Nothing -> Log.info ("no predecessor state" ::String)
-                                    case getShadowed accessor wfe of
-                                        Nothing -> Log.info ("No version" ::String)
-                                        Just (shadow,shadowed) -> do
-                                            updated :: [Version]<- sqlQuery "update versions v set ref_shadowedby = ? where id in ? returning * " (v, In shadowed)
-                                            forEach updated (\v -> Log.info $ "updated" ++ show v)
-                                    -- workflow <-workflow |> updateRecord
-                                    -- Log.info $ "Workflow updated in COMMITSTATE " ++ show workflow
-                                    commitTransaction
-                                    pure (Left "commit successful")
-                                    -- redirectTo $ ShowWorkflowAction workflowId
-                                Nothing -> do
-                                    pure $ Right $ "cannot commit: state is null h=" ++ show h ++ "v=" ++ show v ++ "e=" ++ show e
-                            Nothing -> do
-                                pure $ Right $ "cannot commit: entity is null h=" ++ show h ++ "v=" ++ show v 
+        case history wfe of
+            Just h -> case version wfe of
+                Just v -> case entity wfe of
+                    Just e -> case state wfe of
+                        Just s -> withTransaction do 
+                            Log.info $ "committing h:" ++ show h
+                            hUnlocked :: History <- fetch h
+                            hUnlocked |> set #refOwnedByWorkflow Nothing |> updateRecord
+                            Log.info $ "Unlocked h:" ++ show h
+                            Log.info $ "version=" ++ show v
+                            Log.info $ "entity=" ++ show e
+                            newVersion :: Version <- fetch v
+                            newVersion |>set #committed True |> updateRecord
+                            Log.info $ "commit version v: " ++ show v
+                            w <- workflow |> set #workflowStatus "committed" |> updateRecord
+                            Log.info $ "commit workflow w: " ++ show w
+                            sOld :: [s] <- query @ s |> filterWhere (#refEntity, e) |>
+                                filterWhereSql(#refValidfromversion,"<> " ++ encodeUtf8( show v)) |>
+                                filterWhere(#refValidthruversion,Nothing) |> fetch
+                            case head sOld of
+                                Just sOld -> do
+                                        sUpd :: s <- sOld |> set #refValidthruversion (Just v) |> updateRecord
+                                        Log.info $ "predecessor state terminated" ++ show s
+                                Nothing -> Log.info ("no predecessor state" ::String)
+                            case shadowed wfe of
+                                Nothing -> Log.info ("No version" ::String)
+                                Just (shadow,shadowed) -> do
+                                    updated :: [Version]<- sqlQuery "update versions v set ref_shadowedby = ? where id in ? returning * " (v, In shadowed)
+                                    forEach updated (\v -> Log.info $ "updated" ++ show v)
+                            -- workflow <-workflow |> updateRecord
+                            -- Log.info $ "Workflow updated in COMMITSTATE " ++ show workflow
+                            commitTransaction
+                            pure (Left "commit successful")
+                            -- redirectTo $ ShowWorkflowAction workflowId
                         Nothing -> do
-                            pure $ Right $ "cannot commit: version is null h=" ++ show h
+                            pure $ Right $ "cannot commit: state is null h=" ++ show h ++ "v=" ++ show v ++ "e=" ++ show e
                     Nothing -> do
-                        pure $ Right "cannot commit: history is null"
+                        pure $ Right $ "cannot commit: entity is null h=" ++ show h ++ "v=" ++ show v 
+                Nothing -> do
+                    pure $ Right $ "cannot commit: version is null h=" ++ show h
             Nothing -> do
-                pure $ Right "SHOULDN'T: empty progress data"
+                pure $ Right "cannot commit: history is null"
 
     createHistory :: (?modelContext::ModelContext, ?context::context, LoggingProvider context ) => Id Workflow -> HistoryType -> Day -> s -> IO (s,StateKeys (Id e)(Id s),[PersistenceLog])
     createHistory workflowId historyType validFrom state = do
@@ -248,10 +241,10 @@ class (Show e, KnownSymbol (GetTableName e), e ~ GetModelByTableName (GetTableNa
         (workflow,newState) :: (Workflow,s) <- mutateHistory getAccessor workflow newState
         Log.info $ ">>>>>>>>>>>>>>> NACH MUTATE histotype " ++ show histoType ++ " progress" ++ show (get #progress workflow)
         Log.info $ "Workflow für commit:" ++ show  workflow
-        result <- commitState accessor workflow 
-        case result of
-            Left msg -> Log.info $ "SUCCESS:"++ msg
-            Right msg -> Log.info $ "ERROR:" ++ msg
+        -- result <- commitState stateKeysDefault workflow 
+        -- case result of
+        --    Left msg -> Log.info $ "SUCCESS:"++ msg
+        --    Right msg -> Log.info $ "ERROR:" ++ msg
     
         Log.info $ ">>>>>>>>>>>>>>> NACH COMMITMUTATATION " ++ show histoType
         pure workflow

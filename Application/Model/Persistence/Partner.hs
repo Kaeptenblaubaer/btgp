@@ -13,7 +13,7 @@ import Application.Model.Persistence.Adress
 instance CanVersion Partner PartnerState where
     getAccessor :: (WorkflowEnvironment ->Maybe (StateKeys (Id'"partners")(Id' "partner_states")))
     getAccessor = partner
-    setShadowed :: (WorkflowEnvironment ->  Maybe (StateKeys (Id'"partners")(Id' "partner_states"))) -> WorkflowEnvironment -> (Integer,[Integer]) -> WorkflowEnvironment
+    setShadowed :: (WorkflowEnvironment ->  Maybe (StateKeys (Id'"partners")(Id' "partner_states"))) -> WorkflowEnvironment -> (Id Version,[Id Version]) -> WorkflowEnvironment
     setShadowed accessor wfe shadow = let new :: StateKeys (Id'"partners")(Id' "partner_states") = fromJust $ accessor wfe 
         in wfe {partner = Just $ new { shadowed = Just shadow }}
     setWorkFlowState :: WorkflowEnvironment ->Maybe (StateKeys (Id'"partners")(Id' "partner_states")) -> WorkflowEnvironment

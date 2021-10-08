@@ -14,7 +14,7 @@ import Application.Model.Persistence.Tariff
 instance CanVersion Contract ContractState where
     getAccessor :: (WorkflowEnvironment -> Maybe (StateKeys (Id'"contracts")(Id' "contract_states")))
     getAccessor = contract
-    setShadowed :: (WorkflowEnvironment ->  Maybe (StateKeys (Id'"contracts")(Id' "contract_states"))) -> WorkflowEnvironment -> (Integer,[Integer]) -> WorkflowEnvironment
+    setShadowed :: (WorkflowEnvironment ->  Maybe (StateKeys (Id'"contracts")(Id' "contract_states"))) -> WorkflowEnvironment -> (Id Version,[Id Version]) -> WorkflowEnvironment
     setShadowed accessor wfe shadow = let new :: StateKeys (Id'"contracts")(Id' "contract_states") = fromJust $ accessor wfe 
         in wfe {contract = Just $ new { shadowed = Just shadow }}
     setWorkFlowState :: WorkflowEnvironment -> Maybe (StateKeys (Id'"contracts")(Id' "contract_states")) -> WorkflowEnvironment

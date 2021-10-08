@@ -28,7 +28,7 @@ run = do
     Log.info $ "create History adress " ++ show adressKeys
     let wfenvA = workflowEnvironmentDefault {adress=Just adressKeys, plog = pLogA}
     wfa :: Workflow <- wfa |> set #progress (toJSON wfenvA )|> updateRecord 
-    result <- fetch (get #id wfa) >>= commitState adress
+    result <- fetch (get #id wfa) >>= commitState adressKeys
     Log.info $ "adress " ++ show result
 
 -- Create a partner and attach the pdress
@@ -44,7 +44,7 @@ run = do
     let wfenvPA = wfenvP {partnerAdress=Just(partnerAdressKeys), plog = pLogP ++ pLogPA}
     Log.info $ "wfenv partneraDRESS = " ++ show wfenvPA
     wfp <- wfp |> set #progress (toJSON wfenvPA) |> updateRecord
-    result <- fetch (get #id wfp) >>= commitState partner
+    result <- fetch (get #id wfp) >>= commitState partnerKeys
     Log.info $ "partner + partneradress " ++ show result
 
 -- Create a tariff and attach the partner
@@ -59,7 +59,7 @@ run = do
     Log.info $ "putrelstates tariffpartner " ++ show tariffPartnerKeys
     let wfenvTP = wfenvT  {tariffPartner=Just(tariffPartnerKeys), plog = pLogT ++ pLogTP}
     wft <- wft |> set #progress (toJSON wfenvTP) |> updateRecord  
-    result <- fetch (get #id wft) >>= commitState tariff
+    result <- fetch (get #id wft) >>= commitState tariffKeys
     Log.info $ show "tariff + tariffpartner " ++ show result
 
 -- Create a contract and attach the partner and the tariff
@@ -79,7 +79,7 @@ run = do
     Log.info $ "putrelstates contracttariff " ++ show contractTariffKeys
     let wfenvCT = wfenvC  {contractTariff=Just(contractTariffKeys), plog = pLogC ++ pLogCT}
     wfc <- wfc |> set #progress (toJSON wfenvCT) |> updateRecord  
-    result <- fetch (get #id wfc) >>= commitState contract
+    result <- fetch (get #id wfc) >>= commitState contractKeys
     Log.info $ show "contract + contracttariff " ++ show result
 
 
