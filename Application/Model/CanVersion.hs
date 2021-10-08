@@ -102,17 +102,14 @@ class (Show e, KnownSymbol (GetTableName e), e ~ GetModelByTableName (GetTableNa
                                 Just sOld -> do
                                         sUpd :: s <- sOld |> set #refValidthruversion (Just v) |> updateRecord
                                         Log.info $ "predecessor state terminated" ++ show s
-                                Nothing -> Log.info ("no predecessor state" ::String)
+                                Nothing -> Log.info ("no predecessor state to terminate" ::String)
                             case shadowed wfe of
                                 Nothing -> Log.info ("No version" ::String)
                                 Just (shadow,shadowed) -> do
                                     updated :: [Version]<- sqlQuery "update versions v set ref_shadowedby = ? where id in ? returning * " (v, In shadowed)
                                     forEach updated (\v -> Log.info $ "updated" ++ show v)
-                            -- workflow <-workflow |> updateRecord
-                            -- Log.info $ "Workflow updated in COMMITSTATE " ++ show workflow
                             commitTransaction
                             pure (Left "commit successful")
-                            -- redirectTo $ ShowWorkflowAction workflowId
                         Nothing -> do
                             pure $ Right $ "cannot commit: state is null h=" ++ show h ++ "v=" ++ show v ++ "e=" ++ show e
                     Nothing -> do
