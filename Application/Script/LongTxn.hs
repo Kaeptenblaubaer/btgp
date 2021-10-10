@@ -41,7 +41,7 @@ run = do
 -- Attach the adress
     (partnerAdressState,partnerAdressKeys,pLogPA):: (PartnerAdressState,StateKeys (Id PartnerAdress) (Id PartnerAdressState),[PersistenceLog]) <- putRelState (get #id partnerState) (get #id adressState) 
     Log.info $ "putrelstates partnerAdress " ++ show partnerAdressKeys
-    let wfenvPA = wfenvP {partnerAdress=Just(partnerAdressKeys), plog = pLogP ++ pLogPA}
+    let wfenvPA = wfenvP {partnerAdress=Just partnerAdressKeys, plog = pLogP ++ pLogPA}
     Log.info $ "wfenv partneraDRESS = " ++ show wfenvPA
     wfp <- wfp |> set #progress (toJSON wfenvPA) |> updateRecord
     result <- fetch (get #id wfp) >>= commitState partnerKeys
@@ -57,7 +57,7 @@ run = do
 -- Attach the partner    
     (tariffPartnerState,tariffPartnerKeys,pLogTP):: (TariffPartnerState,StateKeys (Id TariffPartner) (Id TariffPartnerState),[PersistenceLog]) <- putRelState (get #id tariffState) (get #id partnerState) 
     Log.info $ "putrelstates tariffpartner " ++ show tariffPartnerKeys
-    let wfenvTP = wfenvT  {tariffPartner=Just(tariffPartnerKeys), plog = pLogT ++ pLogTP}
+    let wfenvTP = wfenvT  {tariffPartner=Just tariffPartnerKeys, plog = pLogT ++ pLogTP}
     wft <- wft |> set #progress (toJSON wfenvTP) |> updateRecord  
     result <- fetch (get #id wft) >>= commitState tariffKeys
     Log.info $ show "tariff + tariffpartner " ++ show result
@@ -71,22 +71,23 @@ run = do
 -- attach the partner    
     (contractPartnerState,contractPartnerKeys,pLogCP):: (ContractPartnerState,StateKeys (Id ContractPartner) (Id ContractPartnerState),[PersistenceLog]) <- putRelState (get #id contractState) (get #id partnerState) 
     Log.info $ "putrelstates contractpartner " ++ show contractPartnerKeys
-    let wfenvCP = wfenvC  {contractPartner=Just(contractPartnerKeys), plog = pLogC ++ pLogCP}
+    let wfenvCP = wfenvC  {contractPartner=Just contractPartnerKeys, plog = pLogC ++ pLogCP}
     wfc <- wfc |> set #progress (toJSON wfenvCP) |> updateRecord 
     Log.info $ show "contract + contractpartner " ++ show result
 -- attach the tariff
     (contractTariffState,contractTariffKeys,pLogCT):: (ContractTariffState,StateKeys (Id ContractTariff) (Id ContractTariffState),[PersistenceLog]) <- putRelState (get #id contractState) (get #id tariffState) 
     Log.info $ "putrelstates contracttariff " ++ show contractTariffKeys
-    let wfenvCT = wfenvC  {contractTariff=Just(contractTariffKeys), plog = pLogC ++ pLogCT}
+    let wfenvCT = wfenvC  {contractTariff=Just contractTariffKeys, plog = pLogC ++ pLogCT}
     wfc <- wfc |> set #progress (toJSON wfenvCT) |> updateRecord  
     result <- fetch (get #id wfc) >>= commitState contractKeys
     Log.info $ show "contract + contracttariff " ++ show result
 
 
 --
---    let validfrom1 :: Day = fromGregorian 2021 7 1
--- 
---    workflowCM <- runMutation contract usr HistorytypeContract (fst csk) validfrom1 "1st mutatated ContractState"
+    let validfrom1 :: Day = fromGregorian 2021 7 1
+
+    workflowCM <- runMutation contract usr HistorytypeContract contractState validfrom1 "1st mutatated ContractState"
+    Log.info $ show "nach runmutation"
 --    commitState contract workflowCM
 --    case result of
 --        Left msg -> Log.info $ "SUCCESS 1CM:"++ msg
