@@ -78,7 +78,7 @@ class (Show e, KnownSymbol (GetTableName e), e ~ GetModelByTableName (GetTableNa
     commitState :: (?modelContext::ModelContext, ?context::context, LoggingProvider context ) => StateKeys (Id e)(Id s) -> Workflow -> IO (Either Text Text)
     commitState wfe workflow = do
         let workflowId = get #id workflow
-        Log.info $ "ToCOmmitWF wf=" ++ show workflowId
+        Log.info $ "ToCOmmit wfe=" ++ show wfe
         case history wfe of
             Just h -> case version wfe of
                 Just v -> case entity wfe of
@@ -131,7 +131,7 @@ class (Show e, KnownSymbol (GetTableName e), e ~ GetModelByTableName (GetTableNa
             stateId = get #id state
             cruE :: PersistenceLog = mkPersistenceLogState $ mkInsertLog entityId
             cruS :: PersistenceLog = mkPersistenceLogState $ mkInsertLog stateId
-            cruW :: PersistenceLog = mkPersistenceLogState $ mkInsertLog $ workflowId
+            cruW :: PersistenceLog = mkPersistenceLogState $ mkInsertLog  workflowId
             cruH :: PersistenceLog = mkPersistenceLogState $ mkInsertLog $ get #id history
             cruV :: PersistenceLog  = mkPersistenceLogState $ mkInsertLog $ get #id version
             pl :: [PersistenceLog] = [cruE, cruS, cruW, cruH, cruV]
@@ -142,27 +142,28 @@ class (Show e, KnownSymbol (GetTableName e), e ~ GetModelByTableName (GetTableNa
     getShadowed accessor wfe = shadowed $ fromJust $ accessor wfe 
     setShadowed :: (WorkflowEnvironment ->  Maybe (StateKeys (Id e)(Id s))) -> WorkflowEnvironment -> (Id Version,[Id Version]) -> WorkflowEnvironment
 
-    mutateHistory :: (?modelContext::ModelContext, ?context::context, LoggingProvider context) => (WorkflowEnvironment ->  Maybe (StateKeys (Id e)(Id s))) -> Workflow -> s -> IO (Workflow, s)
-    mutateHistory accessor workflow state = do
-        let wfprogress :: WorkflowEnvironment = fromJust $ getWfe workflow
-        let versionIdMB = getStateVersionIdMB accessor wfprogress
-        Log.info $ "mutateHistory Update histoType/wfprogress/versionid" ++ show (get #historyType workflow) ++ show wfprogress ++ "/" ++ show versionIdMB
-        case versionIdMB of
+    mutateHistory :: (?modelContext::ModelContext, ?context::context, LoggingProvider context) => StateKeys (Id e)(Id s) -> Day -> s -> IO (s, StateKeys (Id e)(Id s),[PersistenceLog])
+    mutateHistory wfe validfrom state = do
+        Log.info $ "mutateHistory Update wfe" ++ show wfe
+        let historyId = fromJust $ history wfe
+            entityId = fromJust $ entity wfe
+        case version wfe of
             Just v -> do
-                Log.info ("mutateHistory Update existing Version" :: String)
-                pure (workflow,state)
+                Log.info $ show "mutateHistory Update existing Version/state"
+                currentState <- state |> updateRecord 
+                pure (currentState,wfe,[])
             Nothing -> do
-                Log.info ("mutateHistory Update new Version" :: String)
-                let validfrom = tshow $ get #validfrom workflow
-                    entityId :: (Id e) =  get #refEntity state
-                entity::e <- fetch entityId
-                version :: Version <- newRecord |> set #refHistory (get #refHistory entity) |> set #validfrom (get #validfrom workflow) |> createRecord
-                newState :: s <- newRecord |> set #refEntity entityId |> set #refValidfromversion (get #id version) |>
-                    set #content (get #content state) |> createRecord
-                let wfpNew :: Value = updateWfpV accessor wfprogress (get #refHistory entity) entityId (Just $ get #id version) (Just $ get #id newState )
-                workflow :: Workflow <- workflow |> set #progress wfpNew   |> updateRecord  
-                Log.info $ "mutateHistory Update new Version = " ++  show (get #id newState)           
-                pure (workflow,newState)
+                Log.info $ show "mutateHistory Update new Version"
+                newVersion :: Version <- newRecord |> set #refHistory historyId |> set #validfrom validfrom |> createRecord
+                let versionId :: Id Version = get #id newVersion
+                newState :: s <- state |> set #refEntity entityId |> set #refValidfromversion versionId |> createRecord
+                let stateId = get #id newState
+                    wfeUpd :: StateKeys (Id e)(Id s) = wfe { version= Just versionId , state = Just stateId }  
+                    cruS :: PersistenceLog = mkPersistenceLogState $ mkInsertLog stateId
+                    cruV :: PersistenceLog  = mkPersistenceLogState $ mkInsertLog versionId
+                    pl :: [PersistenceLog] = [cruS, cruV]
+                Log.info $ "mutateHistory Update new Version = " ++  show (get #id newState) ++  " wfeUpd " ++ show wfeUpd      
+                pure (newState, wfeUpd, pl )
 
     queryImmutableState :: (?modelContext::ModelContext, ?context::context, LoggingProvider context )=> Id Version -> IO (Id s)
     queryImmutableState versionId =  do
@@ -180,7 +181,7 @@ class (Show e, KnownSymbol (GetTableName e), e ~ GetModelByTableName (GetTableNa
         let p2 :: (Id History, Id Version,Day) = (historyId, versionId, validfrom)
         shadowed :: [Version]  <- sqlQuery  q2 p2
         let shadowedIds :: [Id Version] = map (get #id) shadowed
-        pure $ (wfe { shadowed = Just (get #id (fromJust $ head vs), shadowedIds)}, fromJust $ head vs, shadowed)
+        pure (wfe { shadowed = Just (get #id (fromJust $ head vs), shadowedIds)}, fromJust $ head vs, shadowed)
 
     queryMutableState :: (?modelContext::ModelContext, ?context::context, LoggingProvider context )=> StateKeys (Id e)(Id s)-> Day -> IO (StateKeys (Id e)(Id s), s,[Version])
     queryMutableState wfe validfrom =  do
@@ -212,25 +213,13 @@ class (Show e, KnownSymbol (GetTableName e), e ~ GetModelByTableName (GetTableNa
         Log.info $ "runMutation wfmut1 = " ++ show workflow
         pure workflow
 
-    runMutation :: (?modelContext::ModelContext, ?context::context, LoggingProvider context, Show s, CanVersion e s) => (WorkflowEnvironment -> Maybe (StateKeys (Id e)(Id s))) -> User -> HistoryType -> s -> Day -> Text -> IO Workflow
-    runMutation accessor usr histoType s validfrom newContent = do
-        Log.info $ ">>>>>>>>>>>>>>> runMutation start" ++ show histoType 
-        workflow <- createUpdateWorkflow accessor usr histoType s validfrom
-        Log.info $ "runMutation wfmut1 = " ++ show workflow 
-        let wfe = fromJust $ accessor $ fromJust $ getWfe workflow
-        (wfe,state,shadowed) :: (StateKeys (Id e)(Id s), s,[Version]) <- queryMutableState wfe (get #validfrom workflow)
-        Log.info $ "runMutation MUTABLE/SHADOWED=" ++ show state ++ "/" ++ show shadowed
+    runMutation :: (?modelContext::ModelContext, ?context::context, LoggingProvider context, Show s, CanVersion e s) => StateKeys (Id e)(Id s) -> s -> Day -> Text -> IO (s,StateKeys (Id e)(Id s),[PersistenceLog])
+    runMutation wfe state validfrom newContent = do
+        (wfe,state,shadowed) :: (StateKeys (Id e)(Id s), s,[Version]) <- queryMutableState wfe validfrom
+        Log.info $ "runMutation MUTABLE/SHADOWED=" ++ show state ++ " ////shadowed /// " ++ show shadowed
         let  newState = state |> set #content newContent 
-        (workflow,newState) :: (Workflow,s) <- mutateHistory getAccessor workflow newState
-        Log.info $ ">>>>>>>>>>>>>>> NACH MUTATE histotype " ++ show histoType ++ " progress" ++ show (get #progress workflow)
-        Log.info $ "Workflow für commit:" ++ show  workflow
-        -- result <- commitState stateKeysDefault workflow 
-        -- case result of
-        --    Left msg -> Log.info $ "SUCCESS:"++ msg
-        --    Right msg -> Log.info $ "ERROR:" ++ msg
-    
-        Log.info $ ">>>>>>>>>>>>>>> NACH COMMITMUTATATION " ++ show histoType
-        pure workflow
+        result@(newState,wfe,pl) :: (s,StateKeys (Id e)(Id s),[PersistenceLog]) <- mutateHistory wfe validfrom newState
+        pure result
 
             
 queryEntityStateByValidFromMaxTxn :: HistoryType -> String -> Query 
@@ -264,7 +253,7 @@ selectStatesByValidFromMaxTxn historyType valid maxtxn options pagination = do
     pure (result,pagination {currentPage= currentPage pagination +1})
 class (CanVersion sourceEntity sourceState, CanVersion targetEntity targetState, CanVersion relation relationState, HasField "refTarget" relationState (Id targetState), SetField "refTarget" relationState (Id targetState)) => CanVersionRelation sourceEntity sourceState targetEntity targetState relation relationState
     where
-    putRelState :: (?modelContext::ModelContext, ?context::context, LoggingProvider context) => Id sourceState -> Id targetState -> IO((relationState, StateKeys(Id relation) (Id relationState),[PersistenceLog] ))
+    putRelState :: (?modelContext::ModelContext, ?context::context, LoggingProvider context) => Id sourceState -> Id targetState -> IO (relationState, StateKeys(Id relation) (Id relationState),[PersistenceLog] )
     putRelState sid tid = do
         Log.info $ tshow "enter commitState" 
         src :: sourceState <- fetch sid

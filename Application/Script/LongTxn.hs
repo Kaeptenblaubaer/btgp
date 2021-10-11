@@ -86,8 +86,15 @@ run = do
 --
     let validfrom1 :: Day = fromGregorian 2021 7 1
 
-    workflowCM <- runMutation contract usr HistorytypeContract contractState validfrom1 "1st mutatated ContractState"
+    workflowCM <- createUpdateWorkflow contract usr HistorytypeContract contractState validfrom1
+    let contractKeysMut = fromJust $ contract $ fromJust $ getWfe workflowCM
+    (contractState,contractKeys,pLogCM):: (ContractState,StateKeys (Id Contract) (Id ContractState),[PersistenceLog]) <- runMutation contractKeysMut contractState validfrom1 "1st mutatated ContractState"
     Log.info $ show "nach runmutation"
+    result <- commitState contractKeys workflowCM 
+    case result of
+        Left msg -> Log.info $ "SUCCESS:"++ msg
+        Right msg -> Log.info $ "ERROR:" ++ msg
+
 --    commitState contract workflowCM
 --    case result of
 --        Left msg -> Log.info $ "SUCCESS 1CM:"++ msg
