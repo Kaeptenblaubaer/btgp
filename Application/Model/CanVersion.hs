@@ -119,8 +119,8 @@ class (Show e, KnownSymbol (GetTableName e), e ~ GetModelByTableName (GetTableNa
             Nothing -> do
                 pure $ Right "cannot commit: history is null"
 
-    createHistory :: (?modelContext::ModelContext, ?context::context, LoggingProvider context ) => Id Workflow -> HistoryType -> Day -> s -> IO (s,StateKeys (Id e)(Id s),[PersistenceLog])
-    createHistory workflowId historyType validFrom state = do
+    createCV :: (?modelContext::ModelContext, ?context::context, LoggingProvider context ) => Id Workflow -> HistoryType -> Day -> s -> IO (s,StateKeys (Id e)(Id s),[PersistenceLog])
+    createCV workflowId historyType validFrom state = do
         history ::History <- newRecord |> set #historyType historyType |> set #refOwnedByWorkflow (Just workflowId) |> createRecord
         let historyId = get #id history
         version :: Version <- newRecord |> set #refHistory (get #id history) |>  set #validfrom validFrom |> createRecord
@@ -142,18 +142,18 @@ class (Show e, KnownSymbol (GetTableName e), e ~ GetModelByTableName (GetTableNa
     getShadowed accessor wfe = shadowed $ fromJust $ accessor wfe 
     setShadowed :: (WorkflowEnvironment ->  Maybe (StateKeys (Id e)(Id s))) -> WorkflowEnvironment -> (Id Version,[Id Version]) -> WorkflowEnvironment
 
-    mutateHistory :: (?modelContext::ModelContext, ?context::context, LoggingProvider context) => StateKeys (Id e)(Id s) -> Day -> s -> IO (s, StateKeys (Id e)(Id s),[PersistenceLog])
-    mutateHistory wfKeys validfrom state = do
-        Log.info $ "mutateHistory Update wfKeys" ++ show wfKeys
+    updateCV :: (?modelContext::ModelContext, ?context::context, LoggingProvider context) => StateKeys (Id e)(Id s) -> Day -> s -> IO (s, StateKeys (Id e)(Id s),[PersistenceLog])
+    updateCV wfKeys validfrom state = do
+        Log.info $ "updateCV Update wfKeys" ++ show wfKeys
         let historyId = fromJust $ history wfKeys
             entityId = fromJust $ entity wfKeys
         case version wfKeys of
             Just v -> do
-                Log.info $ show "mutateHistory Update existing Version/state"
+                Log.info $ show "updateCV Update existing Version/state"
                 currentState <- state |> updateRecord 
                 pure (currentState,wfKeys,[])
             Nothing -> do
-                Log.info $ show "mutateHistory Update new Version"
+                Log.info $ show "updateCV Update new Version"
                 newVersion :: Version <- newRecord |> set #refHistory historyId |> set #validfrom validfrom |> createRecord
                 let versionId :: Id Version = get #id newVersion
                 newState :: s <- state |> set #refEntity entityId |> set #refValidfromversion versionId |> createRecord
@@ -162,7 +162,7 @@ class (Show e, KnownSymbol (GetTableName e), e ~ GetModelByTableName (GetTableNa
                     cruS :: PersistenceLog = mkPersistenceLogState $ mkInsertLog stateId
                     cruV :: PersistenceLog  = mkPersistenceLogState $ mkInsertLog versionId
                     pl :: [PersistenceLog] = [cruS, cruV]
-                Log.info $ "mutateHistory Update new Version = " ++  show (get #id newState) ++  " wfeUpd " ++ show wfeUpd      
+                Log.info $ "updateCV Update new Version = " ++  show (get #id newState) ++  " wfeUpd " ++ show wfeUpd      
                 pure (newState, wfeUpd, pl )
 
     queryImmutableState :: (?modelContext::ModelContext, ?context::context, LoggingProvider context )=> Id Version -> IO (Id s)
@@ -218,7 +218,7 @@ class (Show e, KnownSymbol (GetTableName e), e ~ GetModelByTableName (GetTableNa
         (wfKeys,state,shadowed) :: (StateKeys (Id e)(Id s), s,[Version]) <- queryMutableState wfKeys validfrom
         Log.info $ "runMutation MUTABLE/SHADOWED=" ++ show wfKeys ++ " ////shadowed /// " ++ show shadowed
         let  newState = state |> set #content newContent 
-        result@(newState,wfKeys,pl) :: (s,StateKeys (Id e)(Id s),[PersistenceLog]) <- mutateHistory wfKeys validfrom newState
+        result@(newState,wfKeys,pl) :: (s,StateKeys (Id e)(Id s),[PersistenceLog]) <- updateCV wfKeys validfrom newState
         pure result
 
             
@@ -251,19 +251,22 @@ selectStatesByValidFromMaxTxn historyType valid maxtxn options pagination = do
     Log.info $ "Pagination "  ++ show pagination     
     result :: [relationState] <- sqlQuery (queryEntityStateByValidFromMaxTxn historyType "es.*") (historyType,valid, maxtxn, pageSize pagination, (currentPage pagination -1) * pageSize pagination)
     pure (result,pagination {currentPage= currentPage pagination +1})
-class (CanVersion sourceEntity sourceState, CanVersion targetEntity targetState, CanVersion relation relationState, HasField "refTarget" relationState (Id targetState), SetField "refTarget" relationState (Id targetState)) => CanVersionRelation sourceEntity sourceState targetEntity targetState relation relationState
+class (CanVersion sourceEntity sourceState, CanVersion targetEntity targetState, CanVersion relation relationState, 
+    HasField "refSource" relationState (Id sourceState), SetField "refSource" relationState (Id sourceState), 
+    HasField "refTarget" relationState (Id targetState), SetField "refTarget" relationState (Id targetState)) => 
+    CanVersionRelation sourceEntity sourceState targetEntity targetState relation relationState
     where
-    putRelState :: (?modelContext::ModelContext, ?context::context, LoggingProvider context) => Id sourceState -> Id targetState -> IO (relationState, StateKeys(Id relation) (Id relationState),[PersistenceLog] )
-    putRelState sid tid = do
+    createCVR :: (?modelContext::ModelContext, ?context::context, LoggingProvider context) => relationState -> IO (relationState, StateKeys(Id relation) (Id relationState),[PersistenceLog] )
+    createCVR rs = do
         Log.info $ tshow "enter commitState" 
-        src :: sourceState <- fetch sid
-        tgt :: targetState <- fetch tid
+        src :: sourceState <- fetch (get #refSource rs)
+        tgt :: targetState <- fetch (get #refTarget rs)
         entity :: sourceEntity <- fetch (get #refEntity src) 
         version :: sourceEntity <- fetch (get #refEntity src) 
         let historyId = get #refHistory entity
             versionId = get #refValidfromversion src
         newRelation :: relation <- newRecord |> set #refHistory historyId |> createRecord
-        newRelationState :: relationState <- newRecord |> set #refEntity (get #id newRelation) |> set #refTarget tid |>
+        newRelationState :: relationState <- rs |> set #refEntity (get #id newRelation) |> 
             set #refValidfromversion versionId |> set #refValidthruversion Nothing |> createRecord
         let entityId = get #id newRelation
             stateId = get #id newRelationState

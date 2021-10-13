@@ -83,6 +83,7 @@ CREATE TABLE contract_partner_states (
     id BIGSERIAL PRIMARY KEY NOT NULL,
     ref_validfromversion BIGINT NOT NULL,
     ref_validthruversion BIGINT,
+    ref_source BIGSERIAL NOT NULL,
     ref_target BIGSERIAL NOT NULL,
     ref_entity BIGSERIAL NOT NULL,
     content TEXT NOT NULL
@@ -95,6 +96,7 @@ CREATE TABLE contract_tariff_states (
     id BIGSERIAL PRIMARY KEY NOT NULL,
     ref_validfromversion BIGINT NOT NULL,
     ref_validthruversion BIGINT,
+    ref_source BIGSERIAL NOT NULL,
     ref_target BIGSERIAL NOT NULL,
     ref_entity BIGSERIAL NOT NULL,
     content TEXT NOT NULL
@@ -107,6 +109,7 @@ CREATE TABLE tariff_partner_states (
     id BIGSERIAL PRIMARY KEY NOT NULL,
     ref_validfromversion BIGINT NOT NULL,
     ref_validthruversion BIGINT,
+    ref_source BIGSERIAL NOT NULL,
     ref_target BIGSERIAL NOT NULL,
     ref_entity BIGSERIAL NOT NULL,
     content TEXT NOT NULL
@@ -129,6 +132,7 @@ CREATE TABLE partner_adresses (
 CREATE TABLE partner_adress_states (
     id BIGSERIAL PRIMARY KEY NOT NULL,
     ref_validfromversion BIGINT NOT NULL,
+    ref_source BIGSERIAL NOT NULL,
     ref_validthruversion BIGINT,
     ref_target BIGSERIAL NOT NULL,
     ref_entity BIGSERIAL NOT NULL,
@@ -139,12 +143,14 @@ ALTER TABLE adress_states ADD CONSTRAINT adress_states_ref_ref_validfromversion 
 ALTER TABLE adress_states ADD CONSTRAINT adress_states_ref_ref_validthruversion FOREIGN KEY (ref_validthruversion) REFERENCES versions (id) ON DELETE NO ACTION;
 ALTER TABLE adresses ADD CONSTRAINT adresses_ref_ref_history FOREIGN KEY (ref_history) REFERENCES histories (id) ON DELETE NO ACTION;
 ALTER TABLE contract_partner_states ADD CONSTRAINT contract_partner_states_ref_ref_entity FOREIGN KEY (ref_entity) REFERENCES contract_partners (id) ON DELETE NO ACTION;
+ALTER TABLE contract_partner_states ADD CONSTRAINT contract_partner_states_ref_ref_source FOREIGN KEY (ref_source) REFERENCES contract_states (id) ON DELETE NO ACTION;
 ALTER TABLE contract_partner_states ADD CONSTRAINT contract_partner_states_ref_ref_target FOREIGN KEY (ref_target) REFERENCES partner_states (id) ON DELETE NO ACTION;
 ALTER TABLE contract_partner_states ADD CONSTRAINT contract_partner_states_ref_ref_validfromversion FOREIGN KEY (ref_validfromversion) REFERENCES versions (id) ON DELETE CASCADE;
 ALTER TABLE contract_partner_states ADD CONSTRAINT contract_partner_states_ref_ref_validthruversion FOREIGN KEY (ref_validthruversion) REFERENCES versions (id) ON DELETE CASCADE;
 ALTER TABLE contract_partners ADD CONSTRAINT contract_partners_ref_ref_history FOREIGN KEY (ref_history) REFERENCES histories (id) ON DELETE NO ACTION;
 ALTER TABLE contract_states ADD CONSTRAINT contract_states_ref_ref_entity FOREIGN KEY (ref_entity) REFERENCES contracts (id) ON DELETE CASCADE;
 ALTER TABLE contract_tariff_states ADD CONSTRAINT contract_tariff_states_ref_ref_entity FOREIGN KEY (ref_entity) REFERENCES contract_tariffs (id) ON DELETE NO ACTION;
+ALTER TABLE contract_tariff_states ADD CONSTRAINT contract_tariff_states_ref_ref_source FOREIGN KEY (ref_source) REFERENCES contract_states (id) ON DELETE NO ACTION;
 ALTER TABLE contract_tariff_states ADD CONSTRAINT contract_tariff_states_ref_ref_target FOREIGN KEY (ref_target) REFERENCES tariff_states (id) ON DELETE NO ACTION;
 ALTER TABLE contract_tariff_states ADD CONSTRAINT contract_tariff_states_ref_ref_validfromversion FOREIGN KEY (ref_validfromversion) REFERENCES versions (id) ON DELETE NO ACTION;
 ALTER TABLE contract_tariff_states ADD CONSTRAINT contract_tariff_states_ref_ref_validthruversion FOREIGN KEY (ref_validthruversion) REFERENCES versions (id) ON DELETE NO ACTION;
@@ -154,6 +160,7 @@ ALTER TABLE contract_states ADD CONSTRAINT contracts_ref_Validthruversion FOREIG
 ALTER TABLE contracts ADD CONSTRAINT contracts_ref_ref_history FOREIGN KEY (ref_history) REFERENCES histories (id) ON DELETE NO ACTION;
 ALTER TABLE histories ADD CONSTRAINT histories_ref_OwnedByWorkflow FOREIGN KEY (ref_owned_by_workflow) REFERENCES workflows (id) ON DELETE NO ACTION;
 ALTER TABLE partner_adress_states ADD CONSTRAINT partner_adress_states_ref_ref_entity FOREIGN KEY (ref_entity) REFERENCES partner_adresses (id) ON DELETE NO ACTION;
+ALTER TABLE partner_adress_states ADD CONSTRAINT partner_adress_states_ref_ref_source FOREIGN KEY (ref_source) REFERENCES partner_states (id) ON DELETE NO ACTION;
 ALTER TABLE partner_adress_states ADD CONSTRAINT partner_adress_states_ref_ref_target FOREIGN KEY (ref_target) REFERENCES adress_states (id) ON DELETE NO ACTION;
 ALTER TABLE partner_adress_states ADD CONSTRAINT partner_adress_states_ref_ref_validfromversion FOREIGN KEY (ref_validfromversion) REFERENCES versions (id) ON DELETE NO ACTION;
 ALTER TABLE partner_adress_states ADD CONSTRAINT partner_adress_states_ref_ref_validthruversion FOREIGN KEY (ref_validthruversion) REFERENCES versions (id) ON DELETE NO ACTION;
@@ -163,6 +170,7 @@ ALTER TABLE partner_states ADD CONSTRAINT partners_ref_Validfromversion FOREIGN 
 ALTER TABLE partners ADD CONSTRAINT partners_ref_ref_history FOREIGN KEY (ref_history) REFERENCES histories (id) ON DELETE NO ACTION;
 ALTER TABLE partner_states ADD CONSTRAINT partners_ref_validthruversion FOREIGN KEY (ref_validthruversion) REFERENCES versions (id) ON DELETE SET NULL;
 ALTER TABLE tariff_partner_states ADD CONSTRAINT tariff_partner_states_ref_ref_entity FOREIGN KEY (ref_entity) REFERENCES tariff_partners (id) ON DELETE NO ACTION;
+ALTER TABLE tariff_partner_states ADD CONSTRAINT tariff_partner_states_ref_ref_source FOREIGN KEY (ref_source) REFERENCES tariff_states (id) ON DELETE NO ACTION;
 ALTER TABLE tariff_partner_states ADD CONSTRAINT tariff_partner_states_ref_ref_target FOREIGN KEY (ref_target) REFERENCES partner_states (id) ON DELETE NO ACTION;
 ALTER TABLE tariff_partner_states ADD CONSTRAINT tariff_partner_states_ref_ref_validfromversion FOREIGN KEY (ref_validfromversion) REFERENCES versions (id) ON DELETE NO ACTION;
 ALTER TABLE tariff_partner_states ADD CONSTRAINT tariff_partner_states_ref_ref_validthruversion FOREIGN KEY (ref_validthruversion) REFERENCES versions (id) ON DELETE NO ACTION;
