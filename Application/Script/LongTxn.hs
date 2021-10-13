@@ -113,15 +113,28 @@ run = do
 --        Right msg -> Log.info $ "ERROR:" ++ msg
 --
 --
---    let validfrom2 :: Day = fromGregorian 2021 5 1
--- 
---    workflowCM <- runMutation contract usr HistorytypeContract (fst csk) validfrom2 "2nd mutatated ContractState"
---    commitState contract workflowCM
---    case result of
---        Left msg -> Log.info $ "SUCCESS 2CM:"++ msg
---        Right msg -> Log.info $ "ERROR 2CM :" ++ msg
-----
---
+    let validfrom2 :: Day = fromGregorian 2021 7 1
+
+    workflowCM <- createUpdateWorkflow contract usr HistorytypeContract contractState validfrom2
+    let contractKeysMut = fromJust $ contract $ fromJust $ getWfe workflowCM
+    (contractState,contractKeys,pLogCM):: (ContractState,StateKeys (Id Contract) (Id ContractState),[PersistenceLog]) <- runMutation contractKeysMut contractState validfrom2 "2nd mutatated ContractState"
+    Log.info $ show "nach runmutation"
+    result <- commitState contractKeys workflowCM 
+    case result of
+        Left msg -> Log.info $ "SUCCESS:"++ msg
+        Right msg -> Log.info $ "ERROR:" ++ msg
+    
+    let validfrom3 :: Day = fromGregorian 2021 10 1
+
+    workflowCM <- createUpdateWorkflow contract usr HistorytypeContract contractState validfrom3
+    let contractKeysMut = fromJust $ contract $ fromJust $ getWfe workflowCM
+    (contractState,contractKeys,pLogCM):: (ContractState,StateKeys (Id Contract) (Id ContractState),[PersistenceLog]) <- runMutation contractKeysMut contractState validfrom3 "3rd mutatated ContractState"
+    Log.info $ show "nach runmutation"
+    result <- commitState contractKeys workflowCM 
+    case result of
+        Left msg -> Log.info $ "SUCCESS:"++ msg
+        Right msg -> Log.info $ "ERROR:" ++ msg
+
 ----
 ----    forEach (persistenceLogC ++ persistenceLogP ++ persistenceLogT) \pl -> do
 ----        Log.info $ "Logged plog:" ++ show pl

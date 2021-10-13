@@ -177,7 +177,7 @@ class (Show e, KnownSymbol (GetTableName e), e ~ GetModelByTableName (GetTableNa
             p :: (Id History, Day) = (historyId, validfrom)
         vs :: [Version]  <- sqlQuery  q p
         let versionId = get #id $ fromJust $ head vs 
-        let q2 :: Query = "SELECT * FROM versions v WHERE ref_history = ? and v.id > ? and validfrom > ?"
+        let q2 :: Query = "SELECT * FROM versions v WHERE ref_history = ? and v.id >= ? and validfrom >= ?"
         let p2 :: (Id History, Id Version,Day) = (historyId, versionId, validfrom)
         shadowed :: [Version]  <- sqlQuery  q2 p2
         let shadowedIds :: [Id Version] = map (get #id) shadowed
@@ -216,7 +216,7 @@ class (Show e, KnownSymbol (GetTableName e), e ~ GetModelByTableName (GetTableNa
     runMutation :: (?modelContext::ModelContext, ?context::context, LoggingProvider context, Show s, CanVersion e s) => StateKeys (Id e)(Id s) -> s -> Day -> Text -> IO (s,StateKeys (Id e)(Id s),[PersistenceLog])
     runMutation wfe state validfrom newContent = do
         (wfe,state,shadowed) :: (StateKeys (Id e)(Id s), s,[Version]) <- queryMutableState wfe validfrom
-        Log.info $ "runMutation MUTABLE/SHADOWED=" ++ show state ++ " ////shadowed /// " ++ show shadowed
+        Log.info $ "runMutation MUTABLE/SHADOWED=" ++ show wfe ++ " ////shadowed /// " ++ show shadowed
         let  newState = state |> set #content newContent 
         result@(newState,wfe,pl) :: (s,StateKeys (Id e)(Id s),[PersistenceLog]) <- mutateHistory wfe validfrom newState
         pure result
