@@ -76,13 +76,13 @@ class (Show e, KnownSymbol (GetTableName e), e ~ GetModelByTableName (GetTableNa
     getStateIdMB  accessor wfe = state =<< accessor wfe
 
     commitState :: (?modelContext::ModelContext, ?context::context, LoggingProvider context ) => StateKeys (Id e)(Id s) -> Workflow -> IO (Either Text Text)
-    commitState wfe workflow = do
+    commitState wfKeys workflow = do
         let workflowId = get #id workflow
-        Log.info $ "ToCOmmit wfe=" ++ show wfe
-        case history wfe of
-            Just h -> case version wfe of
-                Just v -> case entity wfe of
-                    Just e -> case state wfe of
+        Log.info $ "ToCOmmit wfKeys=" ++ show wfKeys
+        case history wfKeys of
+            Just h -> case version wfKeys of
+                Just v -> case entity wfKeys of
+                    Just e -> case state wfKeys of
                         Just s -> withTransaction do 
                             Log.info $ "committing h:" ++ show h
                             hUnlocked :: History <- fetch h
@@ -103,7 +103,7 @@ class (Show e, KnownSymbol (GetTableName e), e ~ GetModelByTableName (GetTableNa
                                         sUpd :: s <- sOld |> set #refValidthruversion (Just v) |> updateRecord
                                         Log.info $ "predecessor state terminated" ++ show s
                                 Nothing -> Log.info ("no predecessor state to terminate" ::String)
-                            case shadowed wfe of
+                            case shadowed wfKeys of
                                 Nothing -> Log.info ("No version" ::String)
                                 Just (shadow,shadowed) -> do
                                     updated :: [Version]<- sqlQuery "update versions v set ref_shadowedby = ? where id in ? returning * " (v, In shadowed)
@@ -143,22 +143,22 @@ class (Show e, KnownSymbol (GetTableName e), e ~ GetModelByTableName (GetTableNa
     setShadowed :: (WorkflowEnvironment ->  Maybe (StateKeys (Id e)(Id s))) -> WorkflowEnvironment -> (Id Version,[Id Version]) -> WorkflowEnvironment
 
     mutateHistory :: (?modelContext::ModelContext, ?context::context, LoggingProvider context) => StateKeys (Id e)(Id s) -> Day -> s -> IO (s, StateKeys (Id e)(Id s),[PersistenceLog])
-    mutateHistory wfe validfrom state = do
-        Log.info $ "mutateHistory Update wfe" ++ show wfe
-        let historyId = fromJust $ history wfe
-            entityId = fromJust $ entity wfe
-        case version wfe of
+    mutateHistory wfKeys validfrom state = do
+        Log.info $ "mutateHistory Update wfKeys" ++ show wfKeys
+        let historyId = fromJust $ history wfKeys
+            entityId = fromJust $ entity wfKeys
+        case version wfKeys of
             Just v -> do
                 Log.info $ show "mutateHistory Update existing Version/state"
                 currentState <- state |> updateRecord 
-                pure (currentState,wfe,[])
+                pure (currentState,wfKeys,[])
             Nothing -> do
                 Log.info $ show "mutateHistory Update new Version"
                 newVersion :: Version <- newRecord |> set #refHistory historyId |> set #validfrom validfrom |> createRecord
                 let versionId :: Id Version = get #id newVersion
                 newState :: s <- state |> set #refEntity entityId |> set #refValidfromversion versionId |> createRecord
                 let stateId = get #id newState
-                    wfeUpd :: StateKeys (Id e)(Id s) = wfe { version= Just versionId , state = Just stateId }  
+                    wfeUpd :: StateKeys (Id e)(Id s) = wfKeys { version= Just versionId , state = Just stateId }  
                     cruS :: PersistenceLog = mkPersistenceLogState $ mkInsertLog stateId
                     cruV :: PersistenceLog  = mkPersistenceLogState $ mkInsertLog versionId
                     pl :: [PersistenceLog] = [cruS, cruV]
@@ -171,8 +171,8 @@ class (Show e, KnownSymbol (GetTableName e), e ~ GetModelByTableName (GetTableNa
         pure $ get #id mstate
 
     queryVersionMutableValidfrom :: (?modelContext::ModelContext, ?context::context, LoggingProvider context) => StateKeys (Id e)(Id s) -> Day -> IO (StateKeys (Id e)(Id s), Version,[Version])
-    queryVersionMutableValidfrom wfe validfrom = do
-        let historyId =  fromJust $ history wfe
+    queryVersionMutableValidfrom wfKeys validfrom = do
+        let historyId =  fromJust $ history wfKeys
         let q :: Query = "SELECT * FROM versions v WHERE v.id in (SELECT max(id) FROM versions where ref_history = ? and validfrom <= ?)"
             p :: (Id History, Day) = (historyId, validfrom)
         vs :: [Version]  <- sqlQuery  q p
@@ -181,19 +181,19 @@ class (Show e, KnownSymbol (GetTableName e), e ~ GetModelByTableName (GetTableNa
         let p2 :: (Id History, Id Version,Day) = (historyId, versionId, validfrom)
         shadowed :: [Version]  <- sqlQuery  q2 p2
         let shadowedIds :: [Id Version] = map (get #id) shadowed
-        pure (wfe { shadowed = Just (get #id (fromJust $ head vs), shadowedIds)}, fromJust $ head vs, shadowed)
+        pure (wfKeys { shadowed = Just (get #id (fromJust $ head vs), shadowedIds)}, fromJust $ head vs, shadowed)
 
     queryMutableState :: (?modelContext::ModelContext, ?context::context, LoggingProvider context )=> StateKeys (Id e)(Id s)-> Day -> IO (StateKeys (Id e)(Id s), s,[Version])
-    queryMutableState wfe validfrom =  do
-        (wfe,version,shadowed) :: (StateKeys (Id e) (Id s), Version,[Version]) <- queryVersionMutableValidfrom wfe validfrom
-        let h = fromJust $ history wfe
-            e = fromJust $ entity wfe
+    queryMutableState wfKeys validfrom =  do
+        (wfKeys,version,shadowed) :: (StateKeys (Id e) (Id s), Version,[Version]) <- queryVersionMutableValidfrom wfKeys validfrom
+        let h = fromJust $ history wfKeys
+            e = fromJust $ entity wfKeys
             v = get #id version
         mstate :: s <- query @s |> filterWhere(#refEntity, e) |> filterWhereSql (#refValidfromversion, encodeUtf8("<= " ++ show v)) |>
                             queryOr 
                                  (filterWhereSql (#refValidthruversion, encodeUtf8("> " ++ show v)))
                                  (filterWhereSql (#refValidthruversion, "is null")) |> fetchOne
-        pure (wfe {state=Just (get #id mstate)}, mstate,shadowed)
+        pure (wfKeys {state=Just (get #id mstate)}, mstate,shadowed)
 
     createCreationWorkflow :: (?modelContext::ModelContext, ?context::context, LoggingProvider context, Show s, CanVersion e s) => (WorkflowEnvironment -> Maybe (StateKeys (Id e)(Id s))) -> User -> HistoryType -> Day -> IO Workflow
     createCreationWorkflow accessor usr histoType validfrom = do
@@ -214,11 +214,11 @@ class (Show e, KnownSymbol (GetTableName e), e ~ GetModelByTableName (GetTableNa
         pure workflow
 
     runMutation :: (?modelContext::ModelContext, ?context::context, LoggingProvider context, Show s, CanVersion e s) => StateKeys (Id e)(Id s) -> s -> Day -> Text -> IO (s,StateKeys (Id e)(Id s),[PersistenceLog])
-    runMutation wfe state validfrom newContent = do
-        (wfe,state,shadowed) :: (StateKeys (Id e)(Id s), s,[Version]) <- queryMutableState wfe validfrom
-        Log.info $ "runMutation MUTABLE/SHADOWED=" ++ show wfe ++ " ////shadowed /// " ++ show shadowed
+    runMutation wfKeys state validfrom newContent = do
+        (wfKeys,state,shadowed) :: (StateKeys (Id e)(Id s), s,[Version]) <- queryMutableState wfKeys validfrom
+        Log.info $ "runMutation MUTABLE/SHADOWED=" ++ show wfKeys ++ " ////shadowed /// " ++ show shadowed
         let  newState = state |> set #content newContent 
-        result@(newState,wfe,pl) :: (s,StateKeys (Id e)(Id s),[PersistenceLog]) <- mutateHistory wfe validfrom newState
+        result@(newState,wfKeys,pl) :: (s,StateKeys (Id e)(Id s),[PersistenceLog]) <- mutateHistory wfKeys validfrom newState
         pure result
 
             

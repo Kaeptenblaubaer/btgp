@@ -51,7 +51,7 @@ setPLog :: Workflow -> [PersistenceLog] -> Workflow
 setPLog workflow  pl =  do
     let wfe = case decode $ encode $ get #progress workflow of
             Nothing -> workflowEnvironmentDefault {plog=pl}
-            Just wfe -> wfe {plog=pl++plog wfe}
+            Just wfKeys -> wfKeys {plog=pl++plog wfKeys}
     setWfe workflow wfe
 
 fromId :: Id' table -> PrimaryKey table

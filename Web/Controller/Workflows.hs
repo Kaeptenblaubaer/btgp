@@ -66,10 +66,11 @@ instance Controller WorkflowsController where
         case getWfe workflow of
             Just wfe ->case get #workflowType workflow of
                 WftypeNew -> case get #historyType workflow of
-                    HistorytypeContract -> case getStateIdMB contract wfe of
+                    HistorytypeContract -> case contract wfe of
                         Nothing -> redirectTo NewContractStateAction 
-                        Just sid -> do
-                            let cmd = paramText "Workflow"
+                        cKeys -> do
+                            let sid = fromJust $ state $ fromJust cKeys 
+                                cmd = paramText "Workflow"
                             case cmd of
                                 "SelPartnerState" -> redirectTo $ SelectPartnerStateAction
                                 "UpdateContractStatePartnerState" -> do
@@ -83,7 +84,7 @@ instance Controller WorkflowsController where
                                 "Next" -> redirectTo $ EditContractStateAction sid
                                 "Suspend" -> redirectTo $ ShowWorkflowAction workflowId
                                 "Commit" -> do
-                                    commitState contract workflow
+                                    commitState (fromJust cKeys) workflow
                                     setSuccessMessage "ContractState committed"
                                     redirectTo $ ShowWorkflowAction workflowId
                                 unknown -> do
